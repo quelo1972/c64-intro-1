@@ -283,19 +283,11 @@ init_music:
 
 music_tick:
     lda music_div_ctr
-    cmp #3
-    bcc do_play
-    jmp skip_play
-do_play:
+    eor #$01
+    sta music_div_ctr
+    bne skip_play
     jsr SID_PLAY
 skip_play:
-    inc music_div_ctr
-    lda music_div_ctr
-    cmp #5
-    bne done_music
-    lda #0
-    sta music_div_ctr
-done_music:
     rts
 
 ; ------------------------------------------------------------
