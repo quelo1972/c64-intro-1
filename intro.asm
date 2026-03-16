@@ -68,9 +68,16 @@ irq_handler:
 store_bar:
     stx bar_index
 
-    ; set next raster line
+    ; set next raster line (with vertical offset)
     lda bar_lines,x
+    clc
+    adc bar_phase
     sta $d012
+
+    ; update bar position once per frame (when index wraps)
+    cpx #0
+    bne irq_done
+    jsr update_bar_phase
 
 irq_done:
     jmp $ea81      ; exit via KERNAL IRQ tail (restores regs, RTI)
@@ -328,6 +335,9 @@ init_irq:
 
     lda #0
     sta bar_index
+    sta bar_phase
+    lda #1
+    sta bar_dir
     lda bar_lines
     sta $d012
     lda $d011
@@ -347,6 +357,11 @@ scroll_delay:
 bar_index:
     .byte 0
 
+bar_phase:
+    .byte 0
+bar_dir:
+    .byte 1
+
 msg_scroll:
     .text "  --- C64 INTRO: RASTER + SCROLLER + SID ---   "
     .text "CUSTOM GLYPH: "
@@ -360,6 +375,31 @@ label_text:
     .text "C64 INTRO - IRQ/SCROLLER/CHARSET  GLYPH: "
     .byte 1
     .byte 0
+
+; ------------------------------------------------------------
+; Raster movement (bounce)
+; ------------------------------------------------------------
+
+BAR_MIN = 0
+BAR_MAX = 40
+
+update_bar_phase:
+    lda bar_phase
+    clc
+    adc bar_dir
+    sta bar_phase
+    cmp #BAR_MAX
+    bne check_min
+    lda #$ff       ; -1
+    sta bar_dir
+    rts
+check_min:
+    cmp #BAR_MIN
+    bne done_phase
+    lda #1
+    sta bar_dir
+done_phase:
+    rts
 
 
 ; ------------------------------------------------------------
