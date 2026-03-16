@@ -1,0 +1,12 @@
+# Build artifacts
+build/
+*.prg
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+
+# Emulators
+*.vsf
+*.vsc
