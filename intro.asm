@@ -30,7 +30,6 @@ start:
 
 main_loop:
     jsr wait_frame
-    jsr music_tick
     jsr scroller_tick
     jmp main_loop
 
@@ -78,6 +77,7 @@ store_bar:
     cpx #0
     bne irq_done
     jsr update_bar_phase
+    jsr music_tick
 
 irq_done:
     jmp $ea81      ; exit via KERNAL IRQ tail (restores regs, RTI)
@@ -282,12 +282,7 @@ init_music:
     rts
 
 music_tick:
-    lda music_div_ctr
-    eor #$01
-    sta music_div_ctr
-    bne skip_play
     jsr SID_PLAY
-skip_play:
     rts
 
 ; ------------------------------------------------------------
