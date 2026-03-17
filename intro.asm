@@ -36,9 +36,23 @@ wait_vblank:
     cmp $d012
     bne wait_vblank
 
-    lda hard_scroll_flag
-    beq main_loop
-    jsr do_hard_scroll
+    dec scroll_delay
+    bpl wait_line_exit
+    lda #1             ; Speed control (1 = Half speed, 2 = Slower)
+    sta scroll_delay
+
+    dec scroll_x
+    bpl wait_line_exit
+
+    lda #7
+    sta scroll_x
+    jsr do_hard_scroll  ; Shift memory during V-Blank
+
+wait_line_exit:
+    ; Wait for raster to leave line 255 to ensure only 1 update per frame
+    lda $d012
+    cmp #255
+    beq wait_line_exit
     jmp main_loop
 
 ; ------------------------------------------------------------
@@ -50,12 +64,9 @@ irq_top:
     lda $d019
     sta $d019      ; ack raster IRQ
 
-    lda #$c8       ; 40 cols, normal scroll (bits 0-2=0, bit 3=1) -> actually scroll=0 is shifted. 
-                   ; Let's use $C8 = 11001000. Bit 3=1 (40col). Scroll=0.
-                   ; Standard C64 text is scroll 7 ($CF). Let's use $C8 to match original look or $CF?
-                   ; Original code had $08 (0000 1000). 40cols, scroll 0.
-                   ; To keep top stable, we enforce $C8 (Screen on, 40 cols).
-    sta $d016
+    ; Top of screen: FIXED Scroll (40 Cols, Scroll 0)
+    lda #$08       ; %00001000 (No scroll, 40 cols)
+    sta $d016      ; Stabilize top text
 
     jsr music_tick ; Constant 50Hz music update
     jsr update_sprites
@@ -63,7 +74,27 @@ irq_top:
     ; Setup for Raster Bars
     lda #0
     sta bar_index
-    ; Fall through to bar logic setup...
+
+    ; Setup next IRQ for Split (enable scrolling before text)
+    lda #100       ; Line 100 (Safe zone before text at ~147)
+    sta $d012
+    lda #<irq_split
+    sta $0314
+    lda #>irq_split
+    sta $0315
+    jmp $ea81
+
+irq_split:
+    lda $d019
+    sta $d019      ; ack raster IRQ
+
+    ; Enable Scroll for the middle section
+    lda scroll_x
+    and #7
+    ora #$08
+    sta $d016
+
+    ; Continue to bars logic
     jmp next_bar_irq
 
 irq_bars:
@@ -87,13 +118,12 @@ store_bar:
     
     jsr update_bar_phase
 
-    ; Bars done, setup Scroller IRQ
-    ; Trigger slightly before the text line ($F2) to avoid jitter caused by sprite DMA
-    lda #$f0
+    ; Bars done, loop back to Top IRQ (Line 0)
+    lda #0
     sta $d012
-    lda #<irq_scroller
+    lda #<irq_top
     sta $0314
-    lda #>irq_scroller
+    lda #>irq_top
     sta $0315
     jmp $ea81
 
@@ -112,25 +142,10 @@ next_bar_irq:
 irq_done:
     jmp $ea81      ; exit via KERNAL IRQ tail (restores regs, RTI)
 
-irq_scroller:
-    lda $d019
-    sta $d019
-
-    jsr scroller_update ; Logic for hardware + hard scroll
-
-    ; Back to Top
-    lda #0
-    sta $d012
-    lda #<irq_top
-    sta $0314
-    lda #>irq_top
-    sta $0315
-    jmp $ea81
-
 BAR_COUNT = 11
 
 bar_lines:
-    .byte 50,55,60,65,70,75,80,85,90,95,100
+    .byte 110,115,120,125,130,135,140,145,150,155,160
 
 bar_colors:
     .byte 0,2,8,10,7,1,7,10,8,2,0
@@ -139,13 +154,11 @@ bar_colors:
 ; Scroller (line 24, 40 columns)
 ; ------------------------------------------------------------
 
-SCROLL_LINE = $07c0  ; $0400 + (24*40)
+SCROLL_LINE = $05e0  ; $0400 + (12*40) -> Middle of screen
 ZP_SCROLL = $60
 
 init_scroller:
     lda #0
-    sta hard_scroll_flag
-
     lda #<msg_scroll
     sta ZP_SCROLL
     lda #>msg_scroll
@@ -155,37 +168,9 @@ init_scroller:
     jsr clear_scroll_line
     rts
 
-scroller_update:
-    ; Hardware Scroll Logic
-    ; Set 38 Columns (Bit 3=0) to hide side artifacts
-    ; Set Scroll bits (0-2) from scroll_x
-    lda scroll_x
-    and #7
-    ora #$c0       ; Keep Multicolor/Screen bits if needed, but important is Bit 3=0 (38 cols)
-                   ; $C0 = 1100 0000. 38 cols.
-    sta $d016
-
-    dec scroll_x
-    bpl scroller_exit ; if >= 0, we are just shifting pixels
-
-    ; Hard Scroll (Shift Memory) needed now
-    lda #7
-    sta scroll_x
-
-    ; Set a flag to tell the main loop to perform the hard scroll.
-    ; This keeps the IRQ routine short and consistent in timing.
-    lda #1
-    sta hard_scroll_flag
-
-scroller_exit:
-    rts
-
 do_hard_scroll:
     ; This is called from the main loop, not the IRQ.
     ; It's safe for it to take longer.
-    lda #0
-    sta hard_scroll_flag
-
     ; shift 39 chars left
     ldx #0
 shift_loop:
@@ -225,7 +210,7 @@ clear_chars:
     ldx #0
     lda #1          ; white
 clear_colors:
-    sta $dbc0,x     ; color RAM line 24
+    sta $d9e0,x     ; color RAM line 12 ($d800 + 12*40)
     inx
     cpx #40
     bne clear_colors
@@ -409,8 +394,7 @@ init_irq:
 
 scroll_x:
     .byte 7
-
-hard_scroll_flag:
+scroll_delay:
     .byte 0
 
 bar_index:
@@ -474,6 +458,7 @@ TRAIL_BUFFER_MASK = TRAIL_BUFFER_SIZE - 1
 
 history_idx_zp = $fb  ; ZP temp variable for history index
 msb_collect_zp = $fd  ; ZP temp for collecting MSB bits
+prio_collect_zp = $fc ; ZP temp for collecting Priority bits
 
 init_sprites:
     ; Enable all 8 Sprites
@@ -498,12 +483,17 @@ init_spr_loop:
     lda #100
     sta spr_x
     sta spr_y
+    lda #0
+    sta spr_z_depth
 
     ; Fill history buffers with start position to avoid artifacts
     ldx #TRAIL_BUFFER_SIZE - 1
 fill_hist_loop:
     sta trail_history_x,x
     sta trail_history_y,x
+    lda #0
+    sta trail_history_x_msb,x  ; Fix missing MSB init
+    sta trail_history_prio,x   ; Init priority to Front (0)
     dex
     bpl fill_hist_loop
 
@@ -556,6 +546,11 @@ do_invert_x:
 
     ; (Jump target helper)
 invert_x:
+    ; Toggle Z-depth (priority) on wall bounce
+    lda spr_z_depth
+    eor #1
+    sta spr_z_depth
+
     lda spr_dx
     eor #$ff     ; Negate direction
     clc
@@ -589,6 +584,8 @@ store_head_pos:
     sta trail_history_x,y
     lda spr_x_hi
     sta trail_history_x_msb,y
+    lda spr_z_depth
+    sta trail_history_prio,y
     lda spr_y
     sta trail_history_y,y
 
@@ -602,6 +599,7 @@ store_head_pos:
 
     lda #0
     sta msb_collect_zp
+    sta prio_collect_zp
 
     ldx #14 ; VIC offset for sprite 7 (7*2)
 update_vic_loop:
@@ -619,6 +617,14 @@ update_vic_loop:
     sta msb_collect_zp
 no_msb:
 
+    ; Collect Priority
+    lda trail_history_prio,y
+    beq no_prio
+    lda msb_table,x   ; Get bitmask (reuse MSB table as it matches sprite bits)
+    ora prio_collect_zp
+    sta prio_collect_zp
+no_prio:
+
     ; Update history index for next sprite in trail (N-1)
     lda history_idx_zp
     clc
@@ -632,6 +638,8 @@ no_msb:
 
     lda msb_collect_zp
     sta $d010        ; Update MSB register
+    lda prio_collect_zp
+    sta $d01b        ; Update Priority register (0=Front, 1=Behind text)
 
     ; --- Part 4: Increment history pointer for next frame ---
     inc trail_history_ptr
@@ -642,6 +650,7 @@ no_msb:
 
 spr_x:  .byte 100
 spr_x_hi: .byte 0
+spr_z_depth: .byte 0
 spr_y:  .byte 100
 spr_dx: .byte 1
 spr_dy: .byte 1
@@ -650,6 +659,7 @@ trail_history_ptr: .byte 0
 trail_history_x:   .fill TRAIL_BUFFER_SIZE
 trail_history_x_msb: .fill TRAIL_BUFFER_SIZE
 trail_history_y:   .fill TRAIL_BUFFER_SIZE
+trail_history_prio: .fill TRAIL_BUFFER_SIZE
 
 msb_table:
     .byte 1,0, 2,0, 4,0, 8,0, 16,0, 32,0, 64,0, 128,0
