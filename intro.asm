@@ -26,24 +26,20 @@ start:
     jsr init_screen
     jsr init_scroller
     jsr init_irq
+    jsr init_sprites
     jsr init_music
 
 main_loop:
+    ; Wait for V-blank (line 255) to avoid visual artifacts when moving screen memory
+    lda #255
+wait_vblank:
+    cmp $d012
+    bne wait_vblank
+
+    lda hard_scroll_flag
+    beq main_loop
+    jsr do_hard_scroll
     jmp main_loop
-
-; simple busy-wait delay
-; tune the constants to change speed
-
-delay:
-    ldy #0
-outer:
-    ldx #0
-inner:
-    dex
-    bne inner
-    iny
-    bne outer
-    rts
 
 ; ------------------------------------------------------------
 ; Raster bars (IRQ-driven)
@@ -62,6 +58,7 @@ irq_top:
     sta $d016
 
     jsr music_tick ; Constant 50Hz music update
+    jsr update_sprites
     
     ; Setup for Raster Bars
     lda #0
@@ -90,8 +87,9 @@ store_bar:
     
     jsr update_bar_phase
 
-    ; Bars done, setup Scroller IRQ at line 242 ($F2)
-    lda #$f2
+    ; Bars done, setup Scroller IRQ
+    ; Trigger slightly before the text line ($F2) to avoid jitter caused by sprite DMA
+    lda #$f0
     sta $d012
     lda #<irq_scroller
     sta $0314
@@ -145,6 +143,9 @@ SCROLL_LINE = $07c0  ; $0400 + (24*40)
 ZP_SCROLL = $60
 
 init_scroller:
+    lda #0
+    sta hard_scroll_flag
+
     lda #<msg_scroll
     sta ZP_SCROLL
     lda #>msg_scroll
@@ -170,8 +171,21 @@ scroller_update:
     ; Hard Scroll (Shift Memory) needed now
     lda #7
     sta scroll_x
-    
-    ; -- Do the hard scroll (move bytes) --
+
+    ; Set a flag to tell the main loop to perform the hard scroll.
+    ; This keeps the IRQ routine short and consistent in timing.
+    lda #1
+    sta hard_scroll_flag
+
+scroller_exit:
+    rts
+
+do_hard_scroll:
+    ; This is called from the main loop, not the IRQ.
+    ; It's safe for it to take longer.
+    lda #0
+    sta hard_scroll_flag
+
     ; shift 39 chars left
     ldx #0
 shift_loop:
@@ -197,7 +211,6 @@ write_char:
     bne done_scroll
     inc ZP_SCROLL+1
 done_scroll:
-scroller_exit:
     rts
 
 clear_scroll_line:
@@ -397,6 +410,9 @@ init_irq:
 scroll_x:
     .byte 7
 
+hard_scroll_flag:
+    .byte 0
+
 bar_index:
     .byte 0
 
@@ -445,6 +461,201 @@ check_min:
 done_phase:
     rts
 
+; ------------------------------------------------------------
+; Sprites Logic
+; ------------------------------------------------------------
+
+SPRITE_DATA = $3000
+SPRITE_PTR  = $07f8  ; Screen $0400 + $3f8 offset for Sprite 0
+
+TRAIL_DELAY = 4       ; Delay in frames between trail segments. Aumentalo per più spazio.
+TRAIL_BUFFER_SIZE = 32  ; Power of 2, deve essere >= 8 * TRAIL_DELAY
+TRAIL_BUFFER_MASK = TRAIL_BUFFER_SIZE - 1
+
+history_idx_zp = $fb  ; ZP temp variable for history index
+msb_collect_zp = $fd  ; ZP temp for collecting MSB bits
+
+init_sprites:
+    ; Enable all 8 Sprites
+    lda #$ff
+    sta $d015
+    
+    ; Set Sprite Priority to Background (Sprites go behind text pixels)
+    sta $d01b
+
+    ldx #7
+init_spr_loop:
+    ; Set Pointer to data block ($3000 / 64 = $C0)
+    lda #$c0
+    sta SPRITE_PTR,x
+    ; Set Colors
+    lda spr_colors,x
+    sta $d027,x
+    dex
+    bpl init_spr_loop
+
+    ; Init positions
+    lda #100
+    sta spr_x
+    sta spr_y
+
+    ; Fill history buffers with start position to avoid artifacts
+    ldx #TRAIL_BUFFER_SIZE - 1
+fill_hist_loop:
+    sta trail_history_x,x
+    sta trail_history_y,x
+    dex
+    bpl fill_hist_loop
+
+    ; Initial sprite update to place them correctly, avoiding artifacts
+    jsr update_sprites
+    rts
+
+update_sprites:
+    ; --- Part 1: Update head sprite position (bouncing logic) ---
+    ; Update X
+    ; 16-bit signed addition: spr_x (16bit) = spr_x + spr_dx (8bit signed)
+    lda spr_x
+    clc
+    adc spr_dx
+    sta spr_x
+    
+    ; Handle Carry/Borrow for High Byte
+    ldy spr_dx
+    bpl dx_positive
+    ; DX is negative
+    bcs dx_done      ; If carry set, no borrow needed (e.g. 5 + (-1) = 4, C=1)
+    dec spr_x_hi
+    jmp dx_done
+dx_positive:
+    ; DX is positive
+    bcc dx_done      ; If carry clear, no carry needed
+    inc spr_x_hi
+dx_done:
+
+    ; Bounce X (Limits 24 - 320). Sprite width is 24px. Visible area ends at 343. 343-24=319.
+    ; Right Limit Check (>= 320 = $0140)
+    lda spr_x_hi
+    cmp #1
+    bcc check_left   ; If Hi < 1, not at right limit
+    bne do_invert_x  ; If Hi > 1, definitely past right limit
+    lda spr_x
+    cmp #$40         ; Low byte check (320)
+    bcs do_invert_x
+
+check_left:
+    ; Left Limit Check (< 24)
+    lda spr_x_hi
+    bne update_y     ; If Hi != 0, we are safe > 24
+    lda spr_x
+    cmp #24
+    bcs update_y
+
+do_invert_x:
+    jmp invert_x
+
+    ; (Jump target helper)
+invert_x:
+    lda spr_dx
+    eor #$ff     ; Negate direction
+    clc
+    adc #1
+    sta spr_dx
+    jmp update_y
+update_y:
+    ; Update Y
+    lda spr_y
+    clc
+    adc spr_dy
+    sta spr_y
+
+    ; Bounce Y (Limits 50-229). Sprite height 21px. Visible area 50-249. 249-21=228.
+    cmp #229
+    bcs invert_y
+    cmp #50
+    bcc invert_y
+    jmp store_head_pos
+invert_y:
+    lda spr_dy
+    eor #$ff
+    clc
+    adc #1
+    sta spr_dy
+
+store_head_pos:
+    ; --- Part 2: Store new head position in circular buffer ---
+    ldy trail_history_ptr
+    lda spr_x
+    sta trail_history_x,y
+    lda spr_x_hi
+    sta trail_history_x_msb,y
+    lda spr_y
+    sta trail_history_y,y
+
+    ; --- Part 3: Update all sprite VIC registers from history buffer ---
+    ; Calculate history index for sprite 7: index = (ptr - 7*delay) & mask
+    lda trail_history_ptr
+    sec
+    sbc #(7 * TRAIL_DELAY)
+    and #TRAIL_BUFFER_MASK
+    sta history_idx_zp
+
+    lda #0
+    sta msb_collect_zp
+
+    ldx #14 ; VIC offset for sprite 7 (7*2)
+update_vic_loop:
+    ldy history_idx_zp
+    lda trail_history_x,y
+    sta $d000,x
+    lda trail_history_y,y
+    sta $d001,x
+
+    ; Collect MSB (9th bit)
+    lda trail_history_x_msb,y
+    beq no_msb
+    lda msb_table,x   ; Get bitmask for current sprite
+    ora msb_collect_zp
+    sta msb_collect_zp
+no_msb:
+
+    ; Update history index for next sprite in trail (N-1)
+    lda history_idx_zp
+    clc
+    adc #TRAIL_DELAY
+    and #TRAIL_BUFFER_MASK
+    sta history_idx_zp
+
+    dex
+    dex
+    bpl update_vic_loop
+
+    lda msb_collect_zp
+    sta $d010        ; Update MSB register
+
+    ; --- Part 4: Increment history pointer for next frame ---
+    inc trail_history_ptr
+    lda trail_history_ptr
+    and #TRAIL_BUFFER_MASK
+    sta trail_history_ptr
+    rts
+
+spr_x:  .byte 100
+spr_x_hi: .byte 0
+spr_y:  .byte 100
+spr_dx: .byte 1
+spr_dy: .byte 1
+
+trail_history_ptr: .byte 0
+trail_history_x:   .fill TRAIL_BUFFER_SIZE
+trail_history_x_msb: .fill TRAIL_BUFFER_SIZE
+trail_history_y:   .fill TRAIL_BUFFER_SIZE
+
+msb_table:
+    .byte 1,0, 2,0, 4,0, 8,0, 16,0, 32,0, 64,0, 128,0
+
+spr_colors:
+    .byte 1, 13, 7, 10, 8, 2, 9, 0 ; Palette: White -> Yellow/Red tones -> Dark
 
 ; ------------------------------------------------------------
 ; SID data (loaded at $1000)
@@ -454,3 +665,14 @@ done_phase:
 sid_data:
     .binary "sid_data.bin"
 sid_data_end:
+
+; ------------------------------------------------------------
+; Sprite Data (Located at $3000, safe in Bank 0)
+; ------------------------------------------------------------
+* = SPRITE_DATA
+    ; Simple Ball Shape (24x21 pixels, single color)
+    ; 3 bytes per row
+    .byte 0,60,0, 0,126,0, 0,255,0, 1,255,128, 3,255,192, 3,255,192
+    .byte 7,255,224, 7,255,224, 7,255,224, 7,255,224, 7,255,224, 3,255,192
+    .byte 3,255,192, 1,255,128, 0,255,0, 0,126,0, 0,60,0, 0,0,0
+    .byte 0,0,0, 0,0,0, 0,0,0  ; Padding to 63/64 bytes
