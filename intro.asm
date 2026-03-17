@@ -29,8 +29,6 @@ start:
     jsr init_music
 
 main_loop:
-    jsr wait_frame
-    jsr scroller_tick
     jmp main_loop
 
 ; simple busy-wait delay
@@ -51,9 +49,29 @@ inner:
 ; Raster bars (IRQ-driven)
 ; ------------------------------------------------------------
 
-irq_handler:
+; IRQ at Line 0: Prepare Top Screen & Music
+irq_top:
     lda $d019
     sta $d019      ; ack raster IRQ
+
+    lda #$c8       ; 40 cols, normal scroll (bits 0-2=0, bit 3=1) -> actually scroll=0 is shifted. 
+                   ; Let's use $C8 = 11001000. Bit 3=1 (40col). Scroll=0.
+                   ; Standard C64 text is scroll 7 ($CF). Let's use $C8 to match original look or $CF?
+                   ; Original code had $08 (0000 1000). 40cols, scroll 0.
+                   ; To keep top stable, we enforce $C8 (Screen on, 40 cols).
+    sta $d016
+
+    jsr music_tick ; Constant 50Hz music update
+    
+    ; Setup for Raster Bars
+    lda #0
+    sta bar_index
+    ; Fall through to bar logic setup...
+    jmp next_bar_irq
+
+irq_bars:
+    lda $d019
+    sta $d019
 
     ldx bar_index
     lda bar_colors,x
@@ -66,21 +84,50 @@ irq_handler:
 
 store_bar:
     stx bar_index
+    ; update bar position once per frame (when index wraps)
+    cpx #0
+    bne next_bar_irq
+    
+    jsr update_bar_phase
 
-    ; set next raster line (with vertical offset)
+    ; Bars done, setup Scroller IRQ at line 242 ($F2)
+    lda #$f2
+    sta $d012
+    lda #<irq_scroller
+    sta $0314
+    lda #>irq_scroller
+    sta $0315
+    jmp $ea81
+
+next_bar_irq:
+    ldx bar_index
     lda bar_lines,x
     clc
     adc bar_phase
     sta $d012
-
-    ; update bar position once per frame (when index wraps)
-    cpx #0
-    bne irq_done
-    jsr update_bar_phase
-    jsr music_tick
+    
+    lda #<irq_bars
+    sta $0314
+    lda #>irq_bars
+    sta $0315
 
 irq_done:
     jmp $ea81      ; exit via KERNAL IRQ tail (restores regs, RTI)
+
+irq_scroller:
+    lda $d019
+    sta $d019
+
+    jsr scroller_update ; Logic for hardware + hard scroll
+
+    ; Back to Top
+    lda #0
+    sta $d012
+    lda #<irq_top
+    sta $0314
+    lda #>irq_top
+    sta $0315
+    jmp $ea81
 
 BAR_COUNT = 8
 
@@ -102,21 +149,29 @@ init_scroller:
     sta ZP_SCROLL
     lda #>msg_scroll
     sta ZP_SCROLL+1
-    lda #4
-    sta scroll_delay
+    lda #7
+    sta scroll_x
     jsr clear_scroll_line
     rts
 
-scroller_tick:
-    lda scroll_delay
-    beq do_scroll
-    dec scroll_delay
-    rts
+scroller_update:
+    ; Hardware Scroll Logic
+    ; Set 38 Columns (Bit 3=0) to hide side artifacts
+    ; Set Scroll bits (0-2) from scroll_x
+    lda scroll_x
+    and #7
+    ora #$c0       ; Keep Multicolor/Screen bits if needed, but important is Bit 3=0 (38 cols)
+                   ; $C0 = 1100 0000. 38 cols.
+    sta $d016
 
-do_scroll:
-    lda #4
-    sta scroll_delay
+    dec scroll_x
+    bpl scroller_exit ; if >= 0, we are just shifting pixels
 
+    ; Hard Scroll (Shift Memory) needed now
+    lda #7
+    sta scroll_x
+    
+    ; -- Do the hard scroll (move bytes) --
     ; shift 39 chars left
     ldx #0
 shift_loop:
@@ -142,6 +197,7 @@ write_char:
     bne done_scroll
     inc ZP_SCROLL+1
 done_scroll:
+scroller_exit:
     rts
 
 clear_scroll_line:
@@ -315,9 +371,9 @@ init_irq:
     lda $dc0d
     lda $dd0d
 
-    lda #<irq_handler
+    lda #<irq_top
     sta $0314
-    lda #>irq_handler
+    lda #>irq_top
     sta $0315
 
     lda #0
@@ -325,7 +381,7 @@ init_irq:
     sta bar_phase
     lda #1
     sta bar_dir
-    lda bar_lines
+    lda #0         ; Start at line 0
     sta $d012
     lda $d011
     and #%01111111
@@ -338,8 +394,8 @@ init_irq:
     cli
     rts
 
-scroll_delay:
-    .byte 4
+scroll_x:
+    .byte 7
 
 bar_index:
     .byte 0
@@ -397,14 +453,3 @@ done_phase:
 sid_data:
     .binary "sid_data.bin"
 sid_data_end:
-wait_frame:
-    lda #0
-wait_line0:
-    cmp $d012
-    bne wait_line0
-wait_line0b:
-    cmp $d012
-    beq wait_line0b
-    rts
-music_div_ctr:
-    .byte 0
