@@ -406,18 +406,19 @@ bar_dir:
     .byte 1
 
 msg_scroll:
-    .text "  --- C64 INTRO: RASTER + SCROLLER + SID ---   "
-    .text "CUSTOM GLYPH: "
-    .byte 1
-    .text "   "
-    .text "CODED WITH 64TASS   "
-    .text "PRESS RUN/STOP TO QUIT   "
+    .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes (es. 'A' -> $01)
+    .text "   *** hello c64 world! ***   "
+    .text "ora il testo si legge perfettamente.   "
+    .text "modifica questo messaggio come preferisci!   "
     .byte 0
+    .enc "petscii"     ; Ripristina la codifica standard per il resto
 
 label_text:
-    .text "C64 INTRO - IRQ/SCROLLER/CHARSET  GLYPH: "
+    .enc "screen"
+    .text "c64 intro - irg/scroller/charset  glyph: "
     .byte 1
     .byte 0
+    .enc "petscii"
 
 ; ------------------------------------------------------------
 ; Raster movement (bounce)
