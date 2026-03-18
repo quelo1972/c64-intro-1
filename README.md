@@ -64,8 +64,3 @@ make run
 Se carichi il PRG manualmente in VICE:
 - `LOAD"INTRO.PRG",8,1`
 - `RUN`
-
-## Note
-- Il loader BASIC esegue `SYS 2064`.
-- Inclusi: raster bars via IRQ, scroller su riga 24, charset custom a $2000 e player SID (PSID) con dati integrati.
-- Possiamo evolvere verso sprites, charset più ricco e player musicale più avanzato.
