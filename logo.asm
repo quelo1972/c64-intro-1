@@ -33,8 +33,8 @@ copy_screen_loop:
     bne copy_screen_loop
 
     ; 2b. FIX: Pulisci la metà inferiore dello schermo per nascondere "HE GREET"
-    ; Preleviamo il carattere alla posizione 0,0 (offset 0) e lo usiamo come sfondo
-    lda LOGO_SCREEN_ADDR
+    ; Sovrascriviamo l'area con il carattere "spazio" ($20) per cancellare.
+    lda #$20
     ldx #0
 clean_lower_loop:
     sta LOGO_SCREEN_ADDR + 500,x ; Pulisce da metà schermo in giù

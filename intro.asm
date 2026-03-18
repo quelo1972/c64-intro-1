@@ -14,7 +14,59 @@
 
 * = $0810
 
+    jmp start
+
 USE_CHARSET = 1
+LOGO_CHARSET_ADDR = $2800
+LOGO_SCREEN_ADDR  = $0400
+
+setup_logo:
+    ; 1. Imposta i colori di sfondo (dallo screenshot)
+    lda #0
+    sta $d020
+    sta $d021
+    lda #15
+    sta $d022
+    lda #11
+    sta $d023
+
+    ; 2. Copia la mappa dello schermo
+    ldx #0
+copy_screen_loop:
+    lda logo_screen_data,x
+    sta LOGO_SCREEN_ADDR,x
+    lda logo_screen_data+250,x
+    sta LOGO_SCREEN_ADDR+250,x
+    lda logo_screen_data+500,x
+    sta LOGO_SCREEN_ADDR+500,x
+    lda logo_screen_data+750,x
+    sta LOGO_SCREEN_ADDR+750,x
+    inx
+    cpx #250
+    bne copy_screen_loop
+
+    ; 3. Pulizia parte bassa (HE GREET) con spazi
+    lda #$20
+    ldx #0
+clean_lower_loop:
+    sta LOGO_SCREEN_ADDR + 500,x
+    sta LOGO_SCREEN_ADDR + 750,x
+    inx
+    cpx #250
+    bne clean_lower_loop
+
+    ; 4. Riempi Color RAM (Marrone $09)
+    ldx #0
+    lda #$09
+fill_color_loop:
+    sta $d800,x
+    sta $d900,x
+    sta $da00,x
+    sta $dae8,x
+    inx
+    bne fill_color_loop
+
+    rts
 
 start:
     jsr $e544      ; clear screen
@@ -23,7 +75,9 @@ start:
     .if USE_CHARSET
     jsr init_charset
     .endif
+    ; Ordine importante:
     jsr init_screen
+    jsr setup_logo     ; Disegna il logo SOPRA lo schermo pulito
     jsr init_scroller
     jsr init_irq
     jsr init_sprites
@@ -64,8 +118,11 @@ irq_top:
     lda $d019
     sta $d019      ; ack raster IRQ
 
-    ; Top of screen: FIXED Scroll (40 Cols, Scroll 0)
-    lda #$08       ; %00001000 (No scroll, 40 cols)
+    ; --- ZONA LOGO (Top Screen) ---
+    ; Charset Logo ($2800 -> $1A) + Multicolor ($18)
+    lda #$1a
+    sta $d018
+    lda #$18       ; Multicolor ON + 40 Cols
     sta $d016      ; Stabilize top text
 
     jsr music_tick ; Constant 50Hz music update
@@ -76,7 +133,7 @@ irq_top:
     sta bar_index
 
     ; Setup next IRQ for Split (enable scrolling before text)
-    lda #100       ; Line 100 (Safe zone before text at ~147)
+    lda #146       ; Line 146 (Subito dopo il logo, prima dello scroller a 147)
     sta $d012
     lda #<irq_split
     sta $0314
@@ -88,11 +145,16 @@ irq_split:
     lda $d019
     sta $d019      ; ack raster IRQ
 
+    ; --- ZONA SCROLLER/INTRO (Middle Screen) ---
+    ; Charset Testo ($2000 -> $14)
+    lda #$14
+    sta $d018
+
     ; Enable Scroll for the middle section
     lda scroll_x
     and #7
     ora #$08
-    sta $d016
+    sta $d016      ; Multicolor OFF (bit 4=0), Scroll attivo
 
     ; Continue to bars logic
     jmp next_bar_irq
@@ -145,7 +207,7 @@ irq_done:
 BAR_COUNT = 11
 
 bar_lines:
-    .byte 110,115,120,125,130,135,140,145,150,155,160
+    .byte 150,155,160,165,170,175,180,185,190,195,200
 
 bar_colors:
     .byte 0,2,8,10,7,1,7,10,8,2,0
@@ -154,7 +216,7 @@ bar_colors:
 ; Scroller (line 24, 40 columns)
 ; ------------------------------------------------------------
 
-SCROLL_LINE = $05e0  ; $0400 + (12*40) -> Middle of screen
+SCROLL_LINE = $06d0  ; $0400 + (18*40) -> Riga 18 (Centrata nelle barre)
 ZP_SCROLL = $60
 
 init_scroller:
@@ -210,7 +272,7 @@ clear_chars:
     ldx #0
     lda #1          ; white
 clear_colors:
-    sta $d9e0,x     ; color RAM line 12 ($d800 + 12*40)
+    sta $dad0,x     ; color RAM line 18 ($d800 + 18*40)
     inx
     cpx #40
     bne clear_colors
@@ -240,15 +302,6 @@ fill_color:
     sta $dae8,x
     inx
     bne fill_color
-
-    ldx #0
-label_loop:
-    lda label_text,x
-    beq label_done
-    sta $0400,x
-    inx
-    bne label_loop
-label_done:
     rts
 
 ; ------------------------------------------------------------
@@ -275,7 +328,7 @@ init_charset:
     lda #$35
     sta $01       ; map CHARGEN at $D000, I/O off
 
-    ldx #$10      ; 16 pages * 256 = 4096 bytes
+    ldx #$08      ; 8 pages * 256 = 2048 bytes (STOP PRIMA DI $2800 per salvare il logo!)
 copy_page:
     ldy #0
 copy_loop:
@@ -686,3 +739,12 @@ sid_data_end:
     .byte 7,255,224, 7,255,224, 7,255,224, 7,255,224, 7,255,224, 3,255,192
     .byte 3,255,192, 1,255,128, 0,255,0, 0,126,0, 0,60,0, 0,0,0
     .byte 0,0,0, 0,0,0, 0,0,0  ; Padding to 63/64 bytes
+
+; ------------------------------------------------------------
+; Logo Data (Appended at the end to avoid memory conflict)
+; ------------------------------------------------------------
+* = LOGO_CHARSET_ADDR
+    .binary "logo_charset.bin"
+* = $3c00
+logo_screen_data:
+    .binary "logo_screen.bin"
