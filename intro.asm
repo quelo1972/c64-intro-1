@@ -416,7 +416,7 @@ msg_scroll:
 label_text:
     .enc "screen"
     .text "c64 intro - irg/scroller/charset  glyph: "
-    .byte 1
+    ; .byte 1 ; Questo stampava il glifo personalizzato 'A'
     .byte 0
     .enc "petscii"
 
@@ -677,7 +677,7 @@ sid_data:
 sid_data_end:
 
 ; ------------------------------------------------------------
-; Sprite Data (Located at $3000, safe in Bank 0)
+; Sprite Data (Located at $3000)
 ; ------------------------------------------------------------
 * = SPRITE_DATA
     ; Simple Ball Shape (24x21 pixels, single color)
