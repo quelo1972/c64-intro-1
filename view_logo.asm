@@ -8,6 +8,7 @@
 ; M     = Toggle Multicolor Mode
 ; P     = Cambia colore caratteri (Color RAM)
 ; C     = Cambia colore sfondo/bordo
+; I     = INFO SCREEN (Mostra valori attuali)
 
 * = $0801
 .word $080b, 10
@@ -51,6 +52,17 @@ start:
     sta current_color
     jsr fill_color_ram
 
+    ; --- FIX: Cancellazione forzata metà inferiore schermo (HE GREET) ---
+    ; Scriviamo spazi ($20) a partire da metà schermo ($4400 + 500)
+    lda #$20
+    ldx #0
+clean_loop:
+    sta $4400+500,x
+    sta $4400+750,x
+    inx
+    cpx #250
+    bne clean_loop
+
     cli
 mainloop:
     jsr check_keys
@@ -76,6 +88,29 @@ c_loop:
     rts
 
 check_keys:
+    ; --- Check 'I' (Info Toggle) ---
+    lda #$EF       ; Row 4
+    sta $dc00
+    lda $dc01
+    and #$02       ; Col 1 (I)
+    bne i_up
+    
+    lda key_lock_i
+    beq do_i
+    jmp check_space ; Skip se tasto già premuto
+do_i:
+    inc key_lock_i
+    jsr toggle_info
+    jmp key_done    ; Salta gli altri tasti
+i_up:
+    lda #0
+    sta key_lock_i
+
+check_space:
+    lda info_mode
+    beq do_check_space
+    jmp key_done   ; Se siamo in Info Mode, ignora gli altri tasti
+do_check_space:
     ; --- Check SPACE (Charset Cycle) ---
     lda #$7f       ; Row 7
     sta $dc00
@@ -170,14 +205,121 @@ c_up:
 key_done:
     rts
 
+; --- Routine Info Screen ---
+toggle_info:
+    lda info_mode
+    eor #1
+    sta info_mode
+    beq restore_view
+
+    ; ATTIVA INFO VIEW
+    ; 1. Seleziona Bank 0 ($0000-$3FFF) per vedere il charset ROM e Screen RAM standard
+    lda $dd00
+    ora #%00000011
+    sta $dd00
+    
+    ; 2. Imposta modalità testo standard
+    lda #$14       ; Screen $0400, Charset $1000 (ROM Lowercase)
+    sta $d018
+    lda #$08       ; 40 Colonne, Multicolor OFF
+    sta $d016
+    
+    jsr clear_screen
+    jsr print_status
+    rts
+
+restore_view:
+    ; RIPRISTINA LOGO VIEW
+    ; 1. Seleziona Bank 1 ($4000-$7FFF) dove c'è il dump
+    lda $dd00
+    and #%11111100
+    ora #%00000010 
+    sta $dd00
+    
+    ; 2. Ripristina registri salvati
+    lda current_d018
+    sta $d018
+    lda current_d016
+    sta $d016
+    
+    ; 3. Ripristina colori (necessario perché clear_screen li ha cancellati)
+    jsr fill_color_ram
+    rts
+
+print_status:
+    ldx #0
+pr_loop:
+    lda txt_info,x
+    beq pr_vals
+    sta $0400,x    ; Scrive in Screen RAM
+    lda #1         ; Colore Bianco
+    sta $d800,x
+    inx
+    bne pr_loop
+pr_vals:
+    ; Stampa D018
+    lda current_d018
+    ldx #5
+    jsr print_hex
+    ; Stampa D016
+    lda current_d016
+    ldx #13
+    jsr print_hex
+    ; Stampa COL
+    lda current_color
+    ldx #22
+    jsr print_hex
+    rts
+
+print_hex:
+    pha
+    lsr
+    lsr
+    lsr
+    lsr
+    jsr hex_digit
+    sta $0400,x
+    inx
+    pla
+    and #$0F
+    jsr hex_digit
+    sta $0400,x
+    rts
+
+hex_digit:
+    cmp #10
+    bcc is_num
+    sbc #9         ; 10->1 (A), 15->6 (F). Carry è 1 dal cmp
+    rts
+is_num:
+    adc #$30       ; 0-9. Carry è 0 dal bcc
+    rts
+
+clear_screen:
+    ldx #0
+    lda #$20       ; Spazio
+cl_loop:
+    sta $0400,x
+    sta $0500,x
+    sta $0600,x
+    sta $06e8,x
+    inx
+    bne cl_loop
+    rts
+
 ; --- Variabili ---
+txt_info:       .enc "screen"
+                .text "d018:   d016:    col:   "
+                .byte 0
 current_d018:   .byte $18
 current_d016:   .byte $08
 current_color:  .byte $01
+info_mode:      .byte 0
 key_lock_space: .byte 0
 key_lock_m:     .byte 0
 key_lock_p:     .byte 0
 key_lock_c:     .byte 0
+key_lock_i:     .byte 0
 
 * = $4000
     .binary "bank0.bin"
