@@ -505,8 +505,8 @@ done_phase:
 SPRITE_DATA = $3000
 SPRITE_PTR  = $07f8  ; Screen $0400 + $3f8 offset for Sprite 0
 
-TRAIL_DELAY = 4       ; Delay in frames between trail segments. Aumentalo per più spazio.
-TRAIL_BUFFER_SIZE = 32  ; Power of 2, deve essere >= 8 * TRAIL_DELAY
+TRAIL_DELAY = 8       ; Delay in frames between trail segments. Aumentalo per più spazio.
+TRAIL_BUFFER_SIZE = 64  ; Power of 2, deve essere >= 8 * TRAIL_DELAY
 TRAIL_BUFFER_MASK = TRAIL_BUFFER_SIZE - 1
 
 history_idx_zp = $fb  ; ZP temp variable for history index
@@ -735,10 +735,10 @@ sid_data_end:
 * = SPRITE_DATA
     ; Simple Ball Shape (24x21 pixels, single color)
     ; 3 bytes per row
-    .byte 0,60,0, 0,126,0, 0,255,0, 1,255,128, 3,255,192, 3,255,192
-    .byte 7,255,224, 7,255,224, 7,255,224, 7,255,224, 7,255,224, 3,255,192
-    .byte 3,255,192, 1,255,128, 0,255,0, 0,126,0, 0,60,0, 0,0,0
-    .byte 0,0,0, 0,0,0, 0,0,0  ; Padding to 63/64 bytes
+    .byte 0,0,0, 0,60,0, 0,255,0, 1,255,128, 7,255,224, 15,255,240
+    .byte 31,255,248, 31,255,248, 63,255,252, 63,255,252, 63,255,252, 31,255,248
+    .byte 31,255,248, 15,255,240, 7,255,224, 1,255,128, 0,255,0, 0,60,0
+    .byte 0,0,0, 0,0,0, 0,0,0  ; Padding
 
 ; ------------------------------------------------------------
 ; Logo Data (Appended at the end to avoid memory conflict)
