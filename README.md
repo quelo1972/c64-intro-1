@@ -47,7 +47,7 @@ Questa release combina diverse tecniche classiche della demoscene: raster bars, 
 
 Su Debian/Ubuntu:
 ```bash
-- `sudo apt install 64tass vice`
+sudo apt install 64tass vice
 ```
 
 ## Build
