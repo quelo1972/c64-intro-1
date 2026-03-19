@@ -458,21 +458,6 @@ bar_phase:
 bar_dir:
     .byte 1
 
-msg_scroll:
-    .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes (es. 'A' -> $01)
-    .text "   *** hello c64 world! ***   "
-    .text "ora il testo si legge perfettamente.   "
-    .text "modifica questo messaggio come preferisci!   "
-    .byte 0
-    .enc "petscii"     ; Ripristina la codifica standard per il resto
-
-label_text:
-    .enc "screen"
-    .text "c64 intro - irg/scroller/charset  glyph: "
-    ; .byte 1 ; Questo stampava il glifo personalizzato 'A'
-    .byte 0
-    .enc "petscii"
-
 ; ------------------------------------------------------------
 ; Raster movement (bounce)
 ; ------------------------------------------------------------
@@ -748,3 +733,30 @@ sid_data_end:
 * = $3c00
 logo_screen_data:
     .binary "logo_screen.bin"
+
+; ------------------------------------------------------------
+; Scroll Text Data
+; Spostato a $4000 per evitare sovrapposizioni con il codice/SID a $1000
+; ------------------------------------------------------------
+* = $4000
+msg_scroll:
+    .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
+    .text "   *** hello c64 world! ***   "
+    .text "sono sid e circa 40 anni fa feci questo logo per il gruppo ics "
+    .text "(italian cracking service) non so se abbiano mai saputo chi l'avesse "
+    .text "disegnato. i miei amici rasterburner e the rock me lo commissionarono. "
+    .text "da grande appassionato del nostro amato biscottone presi questo compito "
+    .text "con grande abnegazione, avevo 17 anni nel 1989!!! fu il fantastico commodore 64 "
+    .text "che mi introdusse all'informatica, la mia grande passione, che divenne poi "
+    .text "lavoro. per anni mi dimenticai, per vari motivi, dell'amico c64, segregandolo "
+    .text "in una cantina chiuso nella sua custodia originale. circa 3 anni fa volli "
+    .text "recuperarlo, e scoprii un mondo nascosto che lo manteneva in vita, una grande comunita' "
+    .text "di appassionati, retro-maniaci nerd, come lo ero io... e lo sono ancora. "
+    .byte 0
+    .enc "petscii"
+
+label_text:
+    .enc "screen"
+    .text "c64 intro - irg/scroller/charset  glyph: "
+    .byte 0
+    .enc "petscii"
