@@ -2,6 +2,9 @@
 ; Build: make
 ; Load/run: SYS 2064
 
+; --- Impostazioni di compilazione ---
+CORRECT_LOGO_PRIORITY = 0 ; 1 = Corregge la priorità (logo monocolore), 0 = Look originale (priorità errata)
+
 * = $0801
 
 ; BASIC loader: 10 SYS 2064
@@ -122,8 +125,12 @@ irq_top:
     ; Charset Logo ($2800 -> $1A) + Multicolor ($18)
     lda #$1a
     sta $d018
-    lda #$18       ; Multicolor ON + 40 Cols
-    sta $d016      ; Stabilize top text
+.if CORRECT_LOGO_PRIORITY
+    lda #$08       ; Multicolor OFF (priorità corretta), 40 Cols
+.else
+    lda #$18       ; Multicolor ON (look originale), 40 Cols
+.endif
+    sta $d016
 
     jsr music_tick ; Constant 50Hz music update
     jsr update_sprites
