@@ -93,11 +93,6 @@ wait_vblank:
     cmp $d012
     bne wait_vblank
 
-    dec scroll_delay
-    bpl wait_line_exit
-    lda #1             ; Speed control (1 = Half speed, 2 = Slower)
-    sta scroll_delay
-
     dec scroll_x
     bpl wait_line_exit
 
@@ -465,21 +460,6 @@ bar_phase:
 bar_dir:
     .byte 1
 
-msg_scroll:
-    .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes (es. 'A' -> $01)
-    .text "   *** hello c64 world! ***   "
-    .text "ora il testo si legge perfettamente.   "
-    .text "modifica questo messaggio come preferisci!   "
-    .byte 0
-    .enc "petscii"     ; Ripristina la codifica standard per il resto
-
-label_text:
-    .enc "screen"
-    .text "c64 intro - irg/scroller/charset  glyph: "
-    ; .byte 1 ; Questo stampava il glifo personalizzato 'A'
-    .byte 0
-    .enc "petscii"
-
 ; ------------------------------------------------------------
 ; Raster movement (bounce)
 ; ------------------------------------------------------------
@@ -755,3 +735,38 @@ sid_data_end:
 * = $3c00
 logo_screen_data:
     .binary "logo_screen.bin"
+
+; ------------------------------------------------------------
+; Scroll Text Data
+; Spostato a $4000 per evitare sovrapposizioni con il codice/SID a $1000
+; ------------------------------------------------------------
+* = $4000
+msg_scroll:
+    .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
+    .text "   *** hello c64 world! ***   "
+    .text "sono sid e circa 40 anni fa feci questo logo per il gruppo ics "
+    .text "(italian cracking service) non so se abbiano mai saputo chi l'avesse "
+    .text "disegnato. i miei amici rasterburner e the rock me lo commissionarono. "
+    .text "da grande appassionato del nostro amato biscottone presi questo compito "
+    .text "con grande abnegazione, avevo 17 anni nel 1989!!! fu il fantastico commodore 64 "
+    .text "che mi introdusse all'informatica, la mia grande passione, che divenne poi "
+    .text "lavoro. per anni mi dimenticai, per vari motivi, dell'amico c64, segregandolo "
+    .text "in una cantina chiuso nella sua custodia originale. circa 3 anni fa volli "
+    .text "recuperarlo, e scoprii un mondo nascosto che lo manteneva in vita, una grande comunita' "
+    .text "di appassionati, retro-maniaci nerd, come lo ero io... e lo sono ancora. "
+    .text "ritrovai per caso il logo frugando su csdb.de, vidi che c'era la versione ics import "
+    .text "del gioco ikari warrior ii, con mia grande sorpresa vidi il logo, e mi emozionai tantissimo, "
+    .text "era proprio quello che avevo disegnato 35 anni fa!!! "
+    .text "per rendere onore al momento entusiasmante, ho estratto il logo e ci ho costruito sopra questa intro senza pretese. "
+    .text "spero vi piaccia, a me ha fatto tornare alla mente tanti ricordi bellissimi legati al mio amato c64, e alla mia passione per l'informatica. "
+    .text "il progetto e' alla pagina https://github.com/quelo1972/c64-intro-1, se volete dare un'occhiata al codice sorgente, o contribuire con miglioramenti, siete i benvenuti! "
+    .text "ho usato il c6tass cross-assembler per compilarlo, vscode (windows) e vscodium (linux) per editarlo...        "
+    .text "e qualche aiutino da codex e gemini!!!"
+    .byte 0
+    .enc "petscii"
+
+label_text:
+    .enc "screen"
+    .text "c64 intro - irg/scroller/charset  glyph: "
+    .byte 0
+    .enc "petscii"
