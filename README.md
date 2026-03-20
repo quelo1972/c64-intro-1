@@ -42,6 +42,20 @@ Se carichi il PRG manualmente in VICE:
   | `$3C00`   | Logo Map | Mappa schermo logo |
   | `$4000`   | Scroller Text | Buffer testo |
 
+## Struttura dei File
+- `intro.asm`: Il cuore del progetto (Sorgente Assembly).
+- `sid_data.bin`: Dati grezzi del modulo musicale (senza header PSID, caricati a `$1000`).
+- `logo_charset.bin` / `logo_screen.bin`: Asset grafici estratti (rippati) dall'intro originale.
+- `Makefile`: Script per compilazione e avvio rapido.
+
+## Personalizzazione
+Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
+- **Testo Scroller**: Cerca l'etichetta `msg_scroll`. Il testo usa la codifica `.enc "screen"`, quindi scrivi in **minuscolo** per visualizzare lettere corrette (es. "ciao" -> "CIAO").
+- **Colori**:
+  - `bar_colors`: Modifica la sequenza di colori delle barre raster.
+  - `spr_colors`: Cambia la palette della scia degli sprite.
+- **Velocità Scroller**: In `main_loop`, la variabile `scroll_x` controlla lo spostamento pixel per pixel.
+
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
 
@@ -56,3 +70,7 @@ Il logo è stato recuperato dall'intro originale "ICS Import" (`ics-15.prg`) uti
 - **Codice & Assembly**: SID (quelo1972)
 - **Grafica Logo**: SID (1989)
 - **Tools**: 64tass, VICE, VSCode, Gemini AI
+
+## Dettagli Tecnici
+- **Sprite Trail**: L'effetto scia non calcola 8 posizioni diverse ogni frame. Utilizza un **buffer circolare** (`trail_history`) che registra la posizione dello sprite "testa". Gli altri 7 sprite leggono lo stesso storico ma con un indice ritardato nel tempo, creando un movimento fluido a "serpente".
+- **Raster Split**: L'interrupt divide lo schermo in tre zone logiche (Top, Middle, Bars) per permettere di avere il logo statico in alto e lo scroller in basso, gestendo indipendentemente modalità video e scroll hardware.
