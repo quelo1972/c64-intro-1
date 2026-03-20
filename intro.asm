@@ -751,7 +751,7 @@ msg_scroll:
     .text "con grande abnegazione, avevo 17 anni nel 1989!!! fu il fantastico commodore 64 "
     .text "che mi introdusse all'informatica, la mia grande passione, che divenne poi "
     .text "lavoro. per anni mi dimenticai, per vari motivi, dell'amico c64, segregandolo "
-    .text "in una cantina chiuso nella sua custodia originale. circa 3 anni fa volli "
+    .text "in una cantina chiuso nella sua custodia originale. nel 2023 volli "
     .text "recuperarlo, e scoprii un mondo nascosto che lo manteneva in vita, una grande comunita' "
     .text "di appassionati, retro-maniaci nerd, come lo ero io... e lo sono ancora. "
     .text "ritrovai per caso il logo frugando su csdb.de, vidi che c'era la versione ics import "
