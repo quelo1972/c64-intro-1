@@ -31,9 +31,19 @@ Se carichi il PRG manualmente in VICE:
   - **Logo**: Charset personalizzato ($2800) e mappa schermo ($3C00).
   - **Sprites**: 8 sprite con effetto scia (trail) che rimbalzano ($3000).
 - **Mappa Memoria**:
-  - `$1000`: Player SID e musica.
-  - `$2000`: Charset principale (modificato da ROM).
-  - `$4000`: Testo dello scroller (spostato per evitare sovrapposizioni).
+  | Indirizzo | Descrizione | Note |
+  |-----------|-------------|------|
+  | `$0801`   | BASIC Header | `SYS 2064` |
+  | `$0810`   | Main Code | Logica, IRQ |
+  | `$1000`   | SID Music | Player e Dati |
+  | `$2000`   | Main Charset | Modificato da ROM (Glyph 'A') |
+  | `$2800`   | Logo Charset | Grafica custom (Ripped) |
+  | `$3000`   | Sprites | Dati sprite hardware |
+  | `$3C00`   | Logo Map | Mappa schermo logo |
+  | `$4000`   | Scroller Text | Buffer testo |
+
+## Storia del Progetto
+Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
 
 ## Ripping del Logo (ICS Intro)
 Il logo è stato recuperato dall'intro originale "ICS Import" (`ics-15.prg`) utilizzando il Monitor di VICE:
@@ -41,3 +51,8 @@ Il logo è stato recuperato dall'intro originale "ICS Import" (`ics-15.prg`) uti
 2. **Dump**: Salvataggio delle aree di memoria su file binari (`logo_charset.bin` e `logo_screen.bin`) direttamente dall'emulatore.
 3. **Pulizia**: Nel codice assembly (`setup_logo`), viene caricata la mappa originale ma vengono sovrascritte con spazi le righe di testo inferiori (es. "PRESENT", "CRACKED BY") per isolare il logo pulito.
 4. **Colori**: I colori originali (Multicolor 1 & 2) sono stati analizzati e replicati manualmente nel codice impostando i registri `$D022` e `$D023`.
+
+## Crediti
+- **Codice & Assembly**: SID (quelo1972)
+- **Grafica Logo**: SID (1989)
+- **Tools**: 64tass, VICE, VSCode, Gemini AI
