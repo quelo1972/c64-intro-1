@@ -90,11 +90,6 @@ wait_vblank:
     cmp $d012
     bne wait_vblank
 
-    dec scroll_delay
-    bpl wait_line_exit
-    lda #1             ; Speed control (1 = Half speed, 2 = Slower)
-    sta scroll_delay
-
     dec scroll_x
     bpl wait_line_exit
 
@@ -752,6 +747,14 @@ msg_scroll:
     .text "in una cantina chiuso nella sua custodia originale. circa 3 anni fa volli "
     .text "recuperarlo, e scoprii un mondo nascosto che lo manteneva in vita, una grande comunita' "
     .text "di appassionati, retro-maniaci nerd, come lo ero io... e lo sono ancora. "
+    .text "ritrovai per caso il logo frugando su csdb.de, vidi che c'era la versione ics import "
+    .text "del gioco ikari warrior ii, con mia grande sorpresa vidi il logo, e mi emozionai tantissimo, "
+    .text "era proprio quello che avevo disegnato 35 anni fa!!! "
+    .text "per rendere onore al momento entusiasmante, ho estratto il logo e ci ho costruito sopra questa intro senza pretese. "
+    .text "spero vi piaccia, a me ha fatto tornare alla mente tanti ricordi bellissimi legati al mio amato c64, e alla mia passione per l'informatica. "
+    .text "il progetto e' alla pagina https://github.com/quelo1972/c64-intro-1, se volete dare un'occhiata al codice sorgente, o contribuire con miglioramenti, siete i benvenuti! "
+    .text "ho usato il c6tass cross-assembler per compilarlo, vscode (windows) e vscodium (linux) per editarlo...        "
+    .text "e qualche aiutino da codex e gemini!!!"
     .byte 0
     .enc "petscii"
 
