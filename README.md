@@ -1,58 +1,16 @@
-# C64 Intro - Release v0.1
+# C64 Intro Starter
 
-Una intro "old-school" per Commodore 64 scritta in Assembly 6502.
-Questa release combina diverse tecniche classiche della demoscene: raster bars, sprite multiplexing/trails, scroller orizzontale e split dello schermo per visualizzare modalità grafiche miste.
-
-## Funzionalità Principali
-
-*   **Raster Split (IRQ Split):**
-    *   **Top Screen:** Modalità *Multicolor Text* per il logo.
-    *   **Bottom Screen:** Modalità *Standard Text* (Hires) per lo scroller.
-    *   Gestione precisa tramite interrupt raster per cambiare puntatori al Charset e registri VIC ($D016, $D018) a metà quadro.
-*   **Logo Ripped & Restored:**
-    *   Logo "SID" estratto dalla memoria e pulito (rimozione artefatti originali).
-    *   Charset dedicato posizionato a `$2800`.
-*   **Scroller Orizzontale:**
-    *   Scroller 1x1 fluido a 50Hz.
-    *   Posizionato strategicamente tra le raster bars.
-    *   Utilizza un Charset custom copiato dalla ROM e modificato in RAM (`$2000`).
-*   **Raster Bars:**
-    *   Barre colorate animate che rimbalzano verticalmente.
-    *   Sincronizzate via IRQ per stabilità perfetta (nessun flickering).
-*   **Sprite Trail:**
-    *   8 Sprite hardware utilizzati per creare un effetto "scia" (snake/trail).
-    *   Movimento fluido con logica di rimbalzo (bouncing) sui bordi dello schermo.
-    *   Palette colori "fuoco" (Bianco -> Giallo -> Rosso -> Scuro).
-*   **Musica SID:**
-    *   Player PSID integrato e inizializzato all'avvio.
-
-## Mappa della Memoria
-
-| Indirizzo | Contenuto | Descrizione |
-|-----------|-----------|-------------|
-| `$0801` | Basic Stub | `10 SYS 2064` per l'avvio automatico. |
-| `$0810` | Codice | Logica principale, IRQ handlers, setup. |
-| `$1000` | SID Player | Codice e dati della musica. |
-| `$2000` | Charset (Text) | Copia della ROM Character set per lo scroller. |
-| `$2800` | Charset (Logo) | Font Multicolor estratto per il logo in alto. |
-| `$3000` | Sprite Data | Forme degli sprite. |
-| `$3C00` | Logo Map | Dati grezzi della mappa schermo del logo (buffer). |
-| `$0400` | Screen RAM | Memoria video attiva (condivisa tra Logo e Scroller). |
+Intro per Commodore 64 con raster bars, scroller fluido, logo, sprite e musica SID.
 
 ## Requisiti
-
 - `64tass` (cross-assembler)
 - `VICE` (`x64`) per eseguire il PRG
-- `Make` (opzionale, per il build system)
 
-Su Debian/Ubuntu:
-```bash
-sudo apt install 64tass vice
-```
+Su Debian/Ubuntu di solito:
+- `sudo apt install 64tass vice`
 
 ## Build
-Per compilare il progetto e generare `intro.prg`:
-```bash
+```sh
 make
 ```
 
@@ -64,3 +22,55 @@ make run
 Se carichi il PRG manualmente in VICE:
 - `LOAD"INTRO.PRG",8,1`
 - `RUN`
+
+## Note
+- Il loader BASIC esegue `SYS 2064`.
+- **Effetti Visivi**:
+  - **Raster Bars**: Gradiente a 11 colori gestito via IRQ (Line 150+).
+  - **Scroller**: Scorrimento fluido (hard+soft scroll) su riga 18 ($06D0).
+  - **Logo**: Charset personalizzato ($2800) e mappa schermo ($3C00).
+  - **Sprites**: 8 sprite con effetto scia (trail) che rimbalzano ($3000).
+- **Mappa Memoria**:
+  | Indirizzo | Descrizione | Note |
+  |-----------|-------------|------|
+  | `$0801`   | BASIC Header | `SYS 2064` |
+  | `$0810`   | Main Code | Logica, IRQ |
+  | `$1000`   | SID Music | Player e Dati |
+  | `$2000`   | Main Charset | Modificato da ROM (Glyph 'A') |
+  | `$2800`   | Logo Charset | Grafica custom (Ripped) |
+  | `$3000`   | Sprites | Dati sprite hardware |
+  | `$3C00`   | Logo Map | Mappa schermo logo |
+  | `$4000`   | Scroller Text | Buffer testo |
+
+## Struttura dei File
+- `intro.asm`: Il cuore del progetto (Sorgente Assembly).
+- `sid_data.bin`: Dati grezzi del modulo musicale (senza header PSID, caricati a `$1000`).
+- `logo_charset.bin` / `logo_screen.bin`: Asset grafici estratti (rippati) dall'intro originale.
+- `Makefile`: Script per compilazione e avvio rapido.
+
+## Personalizzazione
+Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
+- **Testo Scroller**: Cerca l'etichetta `msg_scroll`. Il testo usa la codifica `.enc "screen"`, quindi scrivi in **minuscolo** per visualizzare lettere corrette (es. "ciao" -> "CIAO").
+- **Colori**:
+  - `bar_colors`: Modifica la sequenza di colori delle barre raster.
+  - `spr_colors`: Cambia la palette della scia degli sprite.
+- **Velocità Scroller**: In `main_loop`, la variabile `scroll_x` controlla lo spostamento pixel per pixel.
+
+## Storia del Progetto
+Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
+
+## Ripping del Logo (ICS Intro)
+Il logo è stato recuperato dall'intro originale "ICS Import" (`ics-15.prg`) utilizzando il Monitor di VICE:
+1. **Analisi**: Caricato il PRG originale e attivato il monitor. Identificato il charset grafico custom residente a `$2800` e la mappa dello schermo associata.
+2. **Dump**: Salvataggio delle aree di memoria su file binari (`logo_charset.bin` e `logo_screen.bin`) direttamente dall'emulatore.
+3. **Pulizia**: Nel codice assembly (`setup_logo`), viene caricata la mappa originale ma vengono sovrascritte con spazi le righe di testo inferiori (es. "PRESENT", "CRACKED BY") per isolare il logo pulito.
+4. **Colori**: I colori originali (Multicolor 1 & 2) sono stati analizzati e replicati manualmente nel codice impostando i registri `$D022` e `$D023`.
+
+## Crediti
+- **Codice & Assembly**: SID (quelo1972)
+- **Grafica Logo**: SID (1989)
+- **Tools**: 64tass, VICE, VSCode, Gemini AI
+
+## Dettagli Tecnici
+- **Sprite Trail**: L'effetto scia non calcola 8 posizioni diverse ogni frame. Utilizza un **buffer circolare** (`trail_history`) che registra la posizione dello sprite "testa". Gli altri 7 sprite leggono lo stesso storico ma con un indice ritardato nel tempo, creando un movimento fluido a "serpente".
+- **Raster Split**: L'interrupt divide lo schermo in tre zone logiche (Top, Middle, Bars) per permettere di avere il logo statico in alto e lo scroller in basso, gestendo indipendentemente modalità video e scroll hardware.
