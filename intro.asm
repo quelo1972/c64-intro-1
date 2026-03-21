@@ -424,9 +424,10 @@ init_irq:
 
     lda #0
     sta bar_index
+    sta bar_phase_idx
+    tax
+    lda bar_phase_table,x
     sta bar_phase
-    lda #1
-    sta bar_dir
     lda #0         ; Start at line 0
     sta $d012
     lda $d011
@@ -450,33 +451,53 @@ bar_index:
 
 bar_phase:
     .byte 0
-bar_dir:
-    .byte 1
+bar_phase_idx:
+    .byte 0
 
 ; ------------------------------------------------------------
-; Raster movement (bounce)
+; Raster movement (sinusoidal via lookup table)
 ; ------------------------------------------------------------
 
-BAR_MIN = 0
-BAR_MAX = 40
+; Presets:
+; 0 = soft   (ampiezza ridotta, periodo normale)
+; 1 = medium (attuale)
+; 2 = wild   (ampiezza medium, periodo doppia velocita')
+BAR_MOTION_PRESET = 0
+BAR_PHASE_TABLE_MASK = $3f
+
+.if BAR_MOTION_PRESET = 0
+BAR_PHASE_STEP = 1
+.elsif BAR_MOTION_PRESET = 1
+BAR_PHASE_STEP = 1
+.else
+BAR_PHASE_STEP = 2
+.endif
 
 update_bar_phase:
-    lda bar_phase
+    lda bar_phase_idx
     clc
-    adc bar_dir
+    adc #BAR_PHASE_STEP
+    sta bar_phase_idx
+    lda bar_phase_idx
+    and #BAR_PHASE_TABLE_MASK
+    sta bar_phase_idx
+    tax
+    lda bar_phase_table,x
     sta bar_phase
-    cmp #BAR_MAX
-    bne check_min
-    lda #$ff       ; -1
-    sta bar_dir
     rts
-check_min:
-    cmp #BAR_MIN
-    bne done_phase
-    lda #1
-    sta bar_dir
-done_phase:
-    rts
+
+bar_phase_table:
+.if BAR_MOTION_PRESET = 0
+    .byte 20,22,23,25,26,28,29,30,31,32,33,34,35,35,36,36
+    .byte 36,36,36,35,35,34,33,32,31,30,29,28,26,25,23,22
+    .byte 20,18,17,15,14,12,11,10,9,8,7,6,5,5,4,4
+    .byte 4,4,4,5,5,6,7,8,9,10,11,12,14,15,17,18
+.else
+    .byte 20,22,24,26,28,29,31,33,34,35,37,38,38,39,40,40
+    .byte 40,40,40,39,38,38,37,35,34,33,31,29,28,26,24,22
+    .byte 20,18,16,14,12,11,9,7,6,5,3,2,2,1,0,0
+    .byte 0,0,0,1,2,2,3,5,6,7,9,11,12,14,16,18
+.endif
 
 ; ------------------------------------------------------------
 ; Sprites Logic
@@ -753,7 +774,7 @@ msg_scroll:
     .text "per rendere onore al momento entusiasmante, ho estratto il logo e ci ho costruito sopra questa intro senza pretese. "
     .text "spero vi piaccia, a me ha fatto tornare alla mente tanti ricordi bellissimi legati al mio amato c64, e alla mia passione per l'informatica. "
     .text "il progetto e' alla pagina https://github.com/quelo1972/c64-intro-1, se volete dare un'occhiata al codice sorgente, o contribuire con miglioramenti, siete i benvenuti! "
-    .text "ho usato il c6tass cross-assembler per compilarlo, vscode (windows) e vscodium (linux) per editarlo...        "
+    .text "ho usato il c64tass cross-assembler per compilarlo, vscode (windows) e vscodium (linux) per editarlo...        "
     .text "e qualche aiutino da codex e gemini!!!"
     .byte 0
     .enc "petscii"
