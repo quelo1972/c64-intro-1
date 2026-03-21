@@ -93,19 +93,14 @@ wait_vblank:
     cmp $d012
     bne wait_vblank
 
-    dec scroll_x
-    bpl wait_line_exit
-
-    lda #7
-    sta scroll_x
-    jsr do_hard_scroll  ; Shift memory during V-Blank
+    jsr tick_scroller
 
 wait_line_exit:
     ; Wait for raster to leave line 255 to ensure only 1 update per frame
     lda $d012
     cmp #255
     beq wait_line_exit
-    jsr handle_bar_preset_key
+    jsr handle_runtime_keys
     jmp main_loop
 
 ; ------------------------------------------------------------
@@ -180,10 +175,10 @@ store_bar:
     ; update bar position once per frame (when index wraps)
     cpx #0
     bne next_bar_irq
-    
+
     jsr update_bar_phase
 
-    ; Bars done, loop back to Top IRQ (Line 0)
+    ; Loop back to Top IRQ (Line 0)
     lda #0
     sta $d012
     lda #<irq_top
@@ -221,16 +216,70 @@ bar_colors:
 
 SCROLL_LINE = $06d0  ; $0400 + (18*40) -> Riga 18 (Centrata nelle barre)
 ZP_SCROLL = $60
+ZP_SCROLL_SPEED_TABLE = $68
+SCROLL_SPEED_TABLE_MASK = $3f
+SCROLL_SPEED_MODE_DEFAULT = 0
+SCROLL_SPEED_MODE_COUNT = 2
 
 init_scroller:
-    lda #0
     lda #<msg_scroll
     sta ZP_SCROLL
     lda #>msg_scroll
     sta ZP_SCROLL+1
     lda #7
     sta scroll_x
+    lda #SCROLL_SPEED_MODE_DEFAULT
+    sta scroll_speed_mode
+    lda #0
+    sta scroll_speed_idx
+    sta scroll_accum
+    jsr load_scroll_speed_mode
     jsr clear_scroll_line
+    rts
+
+tick_scroller:
+    jsr update_scroll_speed
+
+    ; Fractional speed accumulator:
+    ; carry means "advance 1 pixel this frame"
+    lda scroll_accum
+    clc
+    adc scroll_speed_cur
+    sta scroll_accum
+    bcc done_tick
+
+    dec scroll_x
+    bpl done_tick
+
+    lda #7
+    sta scroll_x
+    jsr do_hard_scroll  ; Shift memory during V-Blank
+done_tick:
+    rts
+
+update_scroll_speed:
+    lda scroll_speed_idx
+    clc
+    adc #1
+    and #SCROLL_SPEED_TABLE_MASK
+    sta scroll_speed_idx
+    tay
+    lda (ZP_SCROLL_SPEED_TABLE),y
+    sta scroll_speed_cur
+    rts
+
+load_scroll_speed_mode:
+    ldx scroll_speed_mode
+    lda scroll_table_ptr_lo,x
+    sta ZP_SCROLL_SPEED_TABLE
+    lda scroll_table_ptr_hi,x
+    sta ZP_SCROLL_SPEED_TABLE+1
+
+    ldy scroll_speed_idx
+    lda (ZP_SCROLL_SPEED_TABLE),y
+    sta scroll_speed_cur
+    lda #0
+    sta scroll_accum
     rts
 
 do_hard_scroll:
@@ -451,7 +500,13 @@ init_irq:
 
 scroll_x:
     .byte 7
-scroll_delay:
+scroll_speed_cur:
+    .byte 224
+scroll_accum:
+    .byte 0
+scroll_speed_idx:
+    .byte 0
+scroll_speed_mode:
     .byte 0
 
 bar_index:
@@ -507,12 +562,18 @@ load_bar_motion_preset:
     sta bar_phase
     rts
 
-handle_bar_preset_key:
+handle_runtime_keys:
+    jsr $ff9f      ; KERNAL SCNKEY: scan keyboard matrix now
     jsr $ffe4      ; KERNAL GETIN (0 if no key)
     beq key_done
     cmp #'R'
     beq cycle_preset
     cmp #'r'
+    beq cycle_preset
+    cmp #'S'
+    beq cycle_scroll_mode
+    cmp #'s'
+    beq cycle_scroll_mode
     bne key_done
 
 cycle_preset:
@@ -525,11 +586,36 @@ cycle_preset:
 
 apply_new_preset:
     jsr load_bar_motion_preset
+    rts
+
+cycle_scroll_mode:
+    inc scroll_speed_mode
+    lda scroll_speed_mode
+    cmp #SCROLL_SPEED_MODE_COUNT
+    bcc apply_new_scroll_mode
+    lda #0
+    sta scroll_speed_mode
+
+apply_new_scroll_mode:
+    jsr load_scroll_speed_mode
 key_done:
     rts
 
 bar_phase_step_lut:
     .byte 1,1,2
+
+scroll_table_ptr_lo:
+    .byte <scroll_speed_table_fixed, <scroll_speed_table_wave
+scroll_table_ptr_hi:
+    .byte >scroll_speed_table_fixed, >scroll_speed_table_wave
+
+scroll_speed_table_fixed:
+    .fill 64,224
+scroll_speed_table_wave:
+    .byte 152,163,174,185,195,205,214,223,231,239,245,251,252,252,252,252
+    .byte 252,252,252,252,252,251,245,239,231,223,214,205,195,185,174,163
+    .byte 152,141,130,119,109,99,90,81,73,65,59,53,49,45,42,41
+    .byte 40,41,42,45,49,53,59,65,73,81,90,99,109,119,130,141
 
 bar_table_ptr_lo:
     .byte <bar_phase_table_soft, <bar_phase_table_medium, <bar_phase_table_medium

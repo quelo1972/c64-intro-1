@@ -4,6 +4,11 @@
 ### Migliorie
 - **Preset runtime raster bars**: cambio preset durante l'esecuzione via tastiera (`R`) senza usare `SPACE`.
 - **Input più sicuro per intro attachate**: evitato conflitto con `SPACE`, spesso usato per avvio programma.
+- **Scroller runtime mode**: aggiunto cambio modalità velocità con tasto `S` (`fixed`/`wave`).
+- **Scroller accel/decel dolce**: introdotta LUT di intervallo per variazione fluida della cadenza.
+
+### Documentazione
+- **README aggiornato**: aggiunte istruzioni per controllo scroller con `S` e parametri `SCROLL_SPEED_MODE_DEFAULT`/LUT.
 
 ## [v1.0.2] - 2026-03-21
 ### Documentazione
