@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+### Migliorie
+- **Preset runtime raster bars**: cambio preset durante l'esecuzione via tastiera (`R`) senza usare `SPACE`.
+- **Input più sicuro per intro attachate**: evitato conflitto con `SPACE`, spesso usato per avvio programma.
+
 ## [v1.0.2] - 2026-03-21
 ### Documentazione
 - **README migliorato**: spiegazione più precisa di cosa modificare in `intro.asm` per regolare la velocità della raster bar.

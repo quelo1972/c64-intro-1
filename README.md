@@ -80,13 +80,15 @@ Il movimento verticale delle barre ora usa una **LUT** (Look-Up Table) per simul
 Apri `intro.asm`, sezione `Raster movement (sinusoidal via lookup table)`, e cambia **solo**:
 
 ```asm
-BAR_MOTION_PRESET = 0
+BAR_MOTION_PRESET_DEFAULT = 1
 ```
 
 Valori disponibili:
 - `0` = `soft` -> movimento più dolce (ampiezza ridotta, velocità normale)
 - `1` = `medium` -> movimento standard
 - `2` = `wild` -> più veloce (fase a doppio passo)
+
+Durante l'esecuzione puoi cambiare preset al volo con il tasto `R` (ciclo `soft -> medium -> wild`).
 
 Poi ricompila:
 
@@ -100,19 +102,14 @@ La velocità verticale è determinata da `BAR_PHASE_STEP`:
 - `BAR_PHASE_STEP = 1` -> velocità normale
 - `BAR_PHASE_STEP = 2` -> circa 2x più veloce
 
-Nel codice attuale `BAR_PHASE_STEP` viene scelto automaticamente in base a `BAR_MOTION_PRESET` tramite il blocco:
+Nel codice attuale `BAR_PHASE_STEP` viene scelto automaticamente in base al preset runtime tramite:
 
 ```asm
-.if BAR_MOTION_PRESET = 0
-BAR_PHASE_STEP = 1
-.elsif BAR_MOTION_PRESET = 1
-BAR_PHASE_STEP = 1
-.else
-BAR_PHASE_STEP = 2
-.endif
+bar_phase_step_lut:
+    .byte 1,1,2
 ```
 
-Se vuoi una velocità personalizzata, modifica questo blocco (esempio: rendere anche `medium` veloce impostando `BAR_PHASE_STEP = 2` nel ramo preset `1`).
+Se vuoi una velocità personalizzata, modifica la LUT degli step (esempio: `.byte 1,2,2` per avere `medium` e `wild` più veloci).
 
 Nota: l'ampiezza dell'oscillazione dipende dalla `bar_phase_table`; la velocità dipende da `BAR_PHASE_STEP`.
 

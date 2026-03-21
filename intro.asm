@@ -105,6 +105,7 @@ wait_line_exit:
     lda $d012
     cmp #255
     beq wait_line_exit
+    jsr handle_bar_preset_key
     jmp main_loop
 
 ; ------------------------------------------------------------
@@ -432,9 +433,9 @@ init_irq:
     lda #0
     sta bar_index
     sta bar_phase_idx
-    tax
-    lda bar_phase_table,x
-    sta bar_phase
+    lda #BAR_MOTION_PRESET_DEFAULT
+    sta bar_motion_preset
+    jsr load_bar_motion_preset
     lda #0         ; Start at line 0
     sta $d012
     lda $d011
@@ -460,51 +461,92 @@ bar_phase:
     .byte 0
 bar_phase_idx:
     .byte 0
+bar_phase_step_cur:
+    .byte 1
+bar_motion_preset:
+    .byte 0
 
 ; ------------------------------------------------------------
 ; Raster movement (sinusoidal via lookup table)
 ; ------------------------------------------------------------
 
-; Presets:
+; Runtime preset (R to cycle):
 ; 0 = soft   (ampiezza ridotta, periodo normale)
-; 1 = medium (attuale)
-; 2 = wild   (ampiezza medium, periodo doppia velocita')
-BAR_MOTION_PRESET = 0
+; 1 = medium (ampiezza piena, periodo normale)
+; 2 = wild   (ampiezza piena, periodo doppia velocita')
+BAR_MOTION_PRESET_DEFAULT = 1
+BAR_PRESET_COUNT = 3
 BAR_PHASE_TABLE_MASK = $3f
 
-.if BAR_MOTION_PRESET = 0
-BAR_PHASE_STEP = 1
-.elsif BAR_MOTION_PRESET = 1
-BAR_PHASE_STEP = 1
-.else
-BAR_PHASE_STEP = 2
-.endif
+ZP_BAR_TABLE = $66
 
 update_bar_phase:
     lda bar_phase_idx
     clc
-    adc #BAR_PHASE_STEP
+    adc bar_phase_step_cur
     sta bar_phase_idx
     lda bar_phase_idx
     and #BAR_PHASE_TABLE_MASK
     sta bar_phase_idx
-    tax
-    lda bar_phase_table,x
+    tay
+    lda (ZP_BAR_TABLE),y
     sta bar_phase
     rts
 
-bar_phase_table:
-.if BAR_MOTION_PRESET = 0
+load_bar_motion_preset:
+    ldx bar_motion_preset
+    lda bar_phase_step_lut,x
+    sta bar_phase_step_cur
+    lda bar_table_ptr_lo,x
+    sta ZP_BAR_TABLE
+    lda bar_table_ptr_hi,x
+    sta ZP_BAR_TABLE+1
+
+    ldy bar_phase_idx
+    lda (ZP_BAR_TABLE),y
+    sta bar_phase
+    rts
+
+handle_bar_preset_key:
+    jsr $ffe4      ; KERNAL GETIN (0 if no key)
+    beq key_done
+    cmp #'R'
+    beq cycle_preset
+    cmp #'r'
+    bne key_done
+
+cycle_preset:
+    inc bar_motion_preset
+    lda bar_motion_preset
+    cmp #BAR_PRESET_COUNT
+    bcc apply_new_preset
+    lda #0
+    sta bar_motion_preset
+
+apply_new_preset:
+    jsr load_bar_motion_preset
+key_done:
+    rts
+
+bar_phase_step_lut:
+    .byte 1,1,2
+
+bar_table_ptr_lo:
+    .byte <bar_phase_table_soft, <bar_phase_table_medium, <bar_phase_table_medium
+bar_table_ptr_hi:
+    .byte >bar_phase_table_soft, >bar_phase_table_medium, >bar_phase_table_medium
+
+bar_phase_table_soft:
     .byte 20,22,23,25,26,28,29,30,31,32,33,34,35,35,36,36
     .byte 36,36,36,35,35,34,33,32,31,30,29,28,26,25,23,22
     .byte 20,18,17,15,14,12,11,10,9,8,7,6,5,5,4,4
     .byte 4,4,4,5,5,6,7,8,9,10,11,12,14,15,17,18
-.else
+
+bar_phase_table_medium:
     .byte 20,22,24,26,28,29,31,33,34,35,37,38,38,39,40,40
     .byte 40,40,40,39,38,38,37,35,34,33,31,29,28,26,24,22
     .byte 20,18,16,14,12,11,9,7,6,5,3,2,2,1,0,0
     .byte 0,0,0,1,2,2,3,5,6,7,9,11,12,14,16,18
-.endif
 
 ; ------------------------------------------------------------
 ; Sprites Logic
