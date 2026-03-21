@@ -56,6 +56,29 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
   - `spr_colors`: Cambia la palette della scia degli sprite.
 - **Velocità Scroller**: In `main_loop`, la variabile `scroll_x` controlla lo spostamento pixel per pixel.
 
+### Regolare il movimento delle Raster Bars sinusoidali
+Il movimento verticale delle barre ora usa una **LUT** (Look-Up Table) per simulare una sinusoide: più lento ai bordi, più veloce verso il centro.
+
+Parametri principali in `intro.asm`:
+- `BAR_MOTION_PRESET`
+  - `0` = `soft` (ampiezza ridotta, movimento più dolce)
+  - `1` = `medium` (preset standard)
+  - `2` = `wild` (stessa ampiezza del medium, ma più veloce)
+- `BAR_PHASE_STEP`
+  - Definisce di quanti step avanza la fase a ogni frame.
+  - `1` = velocità normale, `2` = circa doppia velocità.
+  - È impostato automaticamente dal preset, ma puoi personalizzarlo.
+- `bar_phase_table`
+  - Tabella dei valori verticali precomputati (64 step).
+  - Modificando i valori cambi il "feeling" dell'oscillazione (ampiezza e risposta vicino ai bordi).
+
+Esempio pratico:
+1. Imposta `BAR_MOTION_PRESET = 0` per un movimento più elegante e ampio controllo visivo.
+2. Ricompila con `make`.
+3. Avvia con `make run` e osserva il ritmo.
+
+Nota: il centro medio dell'oscillazione resta allineato al layout attuale, quindi lo scroller centrale mantiene la leggibilità prevista.
+
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
 
