@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.0.2] - 2026-03-21
+### Documentazione
+- **README migliorato**: spiegazione più precisa di cosa modificare in `intro.asm` per regolare la velocità della raster bar.
+- **Palette colori documentate**: aggiunte istruzioni pratiche su `bar_colors`, `spr_colors` e registri VIC `$d022/$d023`.
+- **Guida operativa velocità**: chiarito il ruolo di `BAR_MOTION_PRESET` e `BAR_PHASE_STEP` con esempio diretto.
+
 ## [v1.0.1] - 2026-03-21
 ### Documentazione
 - **README aggiornato**: aggiunta guida pratica al tuning delle raster bars sinusoidali.

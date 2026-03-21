@@ -56,28 +56,65 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
   - `spr_colors`: Cambia la palette della scia degli sprite.
 - **Velocità Scroller**: In `main_loop`, la variabile `scroll_x` controlla lo spostamento pixel per pixel.
 
+### Modificare le palette colori
+Per cambiare i colori in `intro.asm`, intervieni qui:
+
+- **Palette Raster Bars**: etichetta `bar_colors`
+  - Sequenza di 11 valori (0-15) usata dal gradiente delle barre.
+- **Palette Sprite Trail**: etichetta `spr_colors`
+  - Sequenza di 8 valori (0-15), un colore per ciascuno sprite della scia.
+- **Palette Logo Multicolor (2 registri VIC)**: routine `setup_logo`
+  - `$d022` = Multicolor 1
+  - `$d023` = Multicolor 2
+
+Mappa colori C64 (0-15):
+- `0` nero, `1` bianco, `2` rosso, `3` ciano
+- `4` viola, `5` verde, `6` blu, `7` giallo
+- `8` arancio, `9` marrone, `10` rosa, `11` grigio scuro
+- `12` grigio medio, `13` verde chiaro, `14` azzurro chiaro, `15` grigio chiaro
+
 ### Regolare il movimento delle Raster Bars sinusoidali
 Il movimento verticale delle barre ora usa una **LUT** (Look-Up Table) per simulare una sinusoide: più lento ai bordi, più veloce verso il centro.
 
-Parametri principali in `intro.asm`:
-- `BAR_MOTION_PRESET`
-  - `0` = `soft` (ampiezza ridotta, movimento più dolce)
-  - `1` = `medium` (preset standard)
-  - `2` = `wild` (stessa ampiezza del medium, ma più veloce)
-- `BAR_PHASE_STEP`
-  - Definisce di quanti step avanza la fase a ogni frame.
-  - `1` = velocità normale, `2` = circa doppia velocità.
-  - È impostato automaticamente dal preset, ma puoi personalizzarlo.
-- `bar_phase_table`
-  - Tabella dei valori verticali precomputati (64 step).
-  - Modificando i valori cambi il "feeling" dell'oscillazione (ampiezza e risposta vicino ai bordi).
+#### Modifica rapida (consigliata)
+Apri `intro.asm`, sezione `Raster movement (sinusoidal via lookup table)`, e cambia **solo**:
 
-Esempio pratico:
-1. Imposta `BAR_MOTION_PRESET = 0` per un movimento più elegante e ampio controllo visivo.
-2. Ricompila con `make`.
-3. Avvia con `make run` e osserva il ritmo.
+```asm
+BAR_MOTION_PRESET = 0
+```
 
-Nota: il centro medio dell'oscillazione resta allineato al layout attuale, quindi lo scroller centrale mantiene la leggibilità prevista.
+Valori disponibili:
+- `0` = `soft` -> movimento più dolce (ampiezza ridotta, velocità normale)
+- `1` = `medium` -> movimento standard
+- `2` = `wild` -> più veloce (fase a doppio passo)
+
+Poi ricompila:
+
+```sh
+make
+make run
+```
+
+#### Cosa controlla la velocità reale
+La velocità verticale è determinata da `BAR_PHASE_STEP`:
+- `BAR_PHASE_STEP = 1` -> velocità normale
+- `BAR_PHASE_STEP = 2` -> circa 2x più veloce
+
+Nel codice attuale `BAR_PHASE_STEP` viene scelto automaticamente in base a `BAR_MOTION_PRESET` tramite il blocco:
+
+```asm
+.if BAR_MOTION_PRESET = 0
+BAR_PHASE_STEP = 1
+.elsif BAR_MOTION_PRESET = 1
+BAR_PHASE_STEP = 1
+.else
+BAR_PHASE_STEP = 2
+.endif
+```
+
+Se vuoi una velocità personalizzata, modifica questo blocco (esempio: rendere anche `medium` veloce impostando `BAR_PHASE_STEP = 2` nel ramo preset `1`).
+
+Nota: l'ampiezza dell'oscillazione dipende dalla `bar_phase_table`; la velocità dipende da `BAR_PHASE_STEP`.
 
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
