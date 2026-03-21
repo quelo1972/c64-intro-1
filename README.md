@@ -116,25 +116,29 @@ Se vuoi una velocità personalizzata, modifica la LUT degli step (esempio: `.byt
 Nota: l'ampiezza dell'oscillazione dipende dalla `bar_phase_table`; la velocità dipende da `BAR_PHASE_STEP`.
 
 ### Regolare la velocità dello Scroller (tasto S)
-Lo scroller supporta due modalità runtime, selezionabili con `S`:
+Lo scroller supporta quattro modalità runtime, selezionabili con `S`:
 - `fixed`: velocità costante (comportamento classico)
-- `wave`: accel/decel dolce nel tempo (effetto più "vivo")
+- `subtle`: pulsazione lieve
+- `balanced`: pulsazione intermedia
+- `extreme`: pulsazione forte
 
 Parametri principali in `intro.asm`:
 - `SCROLL_SPEED_MODE_DEFAULT`
   - `0` = `fixed`
-  - `1` = `wave`
+  - `1` = `subtle`
+  - `2` = `balanced`
+  - `3` = `extreme`
 - `scroll_speed_table_fixed`
   - Tabella LUT con velocità fissa (`.fill 64,224`)
-- `scroll_speed_table_wave`
-  - Tabella LUT con velocità variabile (attualmente profilo pulsante con ampia escursione)
+- `scroll_speed_table_subtle` / `scroll_speed_table_balanced` / `scroll_speed_table_extreme`
+  - Tabelle LUT con intensità pulsante crescente
 
 Come funziona:
 - Lo scroller non avanza ogni frame in modo rigido.
 - A ogni frame legge una velocità dalla LUT (`scroll_speed_cur`).
 - La velocità alimenta un accumulatore frazionario (`scroll_accum`).
 - Quando l'accumulatore produce carry, lo scroller avanza di 1 pixel.
-- Risultato: in `wave` il testo accelera e rallenta in modo morbido.
+- Risultato: in modalità pulsanti il testo accelera e rallenta in modo morbido.
 
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.

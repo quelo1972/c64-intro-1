@@ -219,7 +219,7 @@ ZP_SCROLL = $60
 ZP_SCROLL_SPEED_TABLE = $68
 SCROLL_SPEED_TABLE_MASK = $3f
 SCROLL_SPEED_MODE_DEFAULT = 0
-SCROLL_SPEED_MODE_COUNT = 2
+SCROLL_SPEED_MODE_COUNT = 4
 
 init_scroller:
     lda #<msg_scroll
@@ -605,13 +605,25 @@ bar_phase_step_lut:
     .byte 1,1,2
 
 scroll_table_ptr_lo:
-    .byte <scroll_speed_table_fixed, <scroll_speed_table_wave
+    .byte <scroll_speed_table_fixed, <scroll_speed_table_subtle, <scroll_speed_table_balanced, <scroll_speed_table_extreme
 scroll_table_ptr_hi:
-    .byte >scroll_speed_table_fixed, >scroll_speed_table_wave
+    .byte >scroll_speed_table_fixed, >scroll_speed_table_subtle, >scroll_speed_table_balanced, >scroll_speed_table_extreme
 
 scroll_speed_table_fixed:
     .fill 64,224
-scroll_speed_table_wave:
+scroll_speed_table_subtle:
+    .byte 216,218,221,223,225,227,229,231,233,235,236,237,238,239,240,240
+    .byte 240,240,240,239,238,237,236,235,233,231,229,227,225,223,221,218
+    .byte 216,214,211,209,207,205,203,201,199,197,196,195,194,193,192,192
+    .byte 192,192,192,193,194,195,196,197,199,201,203,205,207,209,211,214
+
+scroll_speed_table_balanced:
+    .byte 192,198,204,211,216,222,228,233,237,241,245,248,251,252,252,252
+    .byte 252,252,252,252,251,248,245,241,237,233,228,222,216,211,204,198
+    .byte 192,186,180,173,168,162,156,151,147,143,139,136,133,131,129,128
+    .byte 128,128,129,131,133,136,139,143,147,151,156,162,168,173,180,186
+
+scroll_speed_table_extreme:
     .byte 152,163,174,185,195,205,214,223,231,239,245,251,252,252,252,252
     .byte 252,252,252,252,252,251,245,239,231,223,214,205,195,185,174,163
     .byte 152,141,130,119,109,99,90,81,73,65,59,53,49,45,42,41
