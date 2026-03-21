@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.0.1] - 2026-03-21
+### Documentazione
+- **README aggiornato**: aggiunta guida pratica al tuning delle raster bars sinusoidali.
+- **Parametri spiegati**: documentati `BAR_MOTION_PRESET`, `BAR_PHASE_STEP` e uso della `bar_phase_table`.
+- **Workflow rapido**: aggiunti passaggi operativi per provare preset e velocità con `make`/`make run`.
+
 ## [v1.0] - 2026-03-21
 ### Funzionalità
 - **Raster Bars Sinusoidali**: Sostituito il movimento lineare con una LUT (Look-Up Table) per ottenere rallentamento ai bordi e accelerazione verso il centro.
