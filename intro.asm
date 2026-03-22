@@ -101,6 +101,7 @@ wait_line_exit:
     cmp #255
     beq wait_line_exit
     jsr handle_runtime_keys
+    jsr update_debug_hud
     jmp main_loop
 
 ; ------------------------------------------------------------
@@ -177,6 +178,24 @@ store_bar:
     bne next_bar_irq
 
     jsr update_bar_phase
+
+    ; Bottom HUD split (fixed late line):
+    ; - always after scroller text scanlines
+    ; - still before HUD row rendering
+    lda #242
+    sta $d012
+    lda #<irq_hud
+    sta $0314
+    lda #>irq_hud
+    sta $0315
+    jmp $ea81
+
+irq_hud:
+    lda $d019
+    sta $d019
+
+    lda #$08
+    sta $d016      ; no fine scroll in bottom section (stable HUD)
 
     ; Loop back to Top IRQ (Line 0)
     lda #0
@@ -354,6 +373,9 @@ fill_color:
     sta $dae8,x
     inx
     bne fill_color
+    lda #0
+    sta debug_mode
+    jsr clear_debug_hud
     rts
 
 ; ------------------------------------------------------------
@@ -566,6 +588,10 @@ handle_runtime_keys:
     jsr $ff9f      ; KERNAL SCNKEY: scan keyboard matrix now
     jsr $ffe4      ; KERNAL GETIN (0 if no key)
     beq key_done
+    cmp #'D'
+    beq toggle_debug
+    cmp #'d'
+    beq toggle_debug
     cmp #'R'
     beq cycle_preset
     cmp #'r'
@@ -575,6 +601,14 @@ handle_runtime_keys:
     cmp #'s'
     beq cycle_scroll_mode
     bne key_done
+
+toggle_debug:
+    lda debug_mode
+    eor #1
+    sta debug_mode
+    bne key_done
+    jsr clear_debug_hud
+    rts
 
 cycle_preset:
     inc bar_motion_preset
@@ -601,8 +635,63 @@ apply_new_scroll_mode:
 key_done:
     rts
 
+DEBUG_HUD_LINE = $07c0
+DEBUG_HUD_COLOR_LINE = $dbc0
+
+update_debug_hud:
+    lda debug_mode
+    bne write_debug_hud
+    rts
+
+write_debug_hud:
+    ldx #0
+copy_hud_label:
+    lda debug_hud_label,x
+    beq write_debug_values
+    sta DEBUG_HUD_LINE,x
+    lda #1
+    sta DEBUG_HUD_COLOR_LINE,x
+    inx
+    bne copy_hud_label
+
+write_debug_values:
+    lda bar_motion_preset
+    clc
+    adc #'0'
+    sta DEBUG_HUD_LINE + 12
+
+    lda scroll_speed_mode
+    clc
+    adc #'0'
+    sta DEBUG_HUD_LINE + 21
+    rts
+
+clear_debug_hud:
+    ldx #39
+    lda #$20
+clear_debug_hud_loop:
+    sta DEBUG_HUD_LINE,x
+    dex
+    bpl clear_debug_hud_loop
+    rts
+
 bar_phase_step_lut:
     .byte 1,1,2
+
+debug_mode:
+    .byte 0
+
+debug_hud_label:
+    .enc "screen"
+    .text "debug pset:"
+    .byte $20
+    .text "0"
+    .byte $20
+    .text "smode:"
+    .byte $20
+    .text "0"
+    .byte 0
+    .enc "petscii"
 
 scroll_table_ptr_lo:
     .byte <scroll_speed_table_fixed, <scroll_speed_table_subtle, <scroll_speed_table_balanced, <scroll_speed_table_extreme
@@ -641,8 +730,8 @@ bar_phase_table_soft:
     .byte 4,4,4,5,5,6,7,8,9,10,11,12,14,15,17,18
 
 bar_phase_table_medium:
-    .byte 20,22,24,26,28,29,31,33,34,35,37,38,38,39,40,40
-    .byte 40,40,40,39,38,38,37,35,34,33,31,29,28,26,24,22
+    .byte 20,22,24,26,28,29,31,33,34,35,37,38,38,39,39,39
+    .byte 39,39,39,39,38,38,37,35,34,33,31,29,28,26,24,22
     .byte 20,18,16,14,12,11,9,7,6,5,3,2,2,1,0,0
     .byte 0,0,0,1,2,2,3,5,6,7,9,11,12,14,16,18
 
