@@ -551,7 +551,7 @@ bar_motion_preset:
 ; 0 = soft   (ampiezza ridotta, periodo normale)
 ; 1 = medium (ampiezza piena, periodo normale)
 ; 2 = wild   (ampiezza piena, periodo doppia velocita')
-BAR_MOTION_PRESET_DEFAULT = 1
+BAR_MOTION_PRESET_DEFAULT = 0
 BAR_PRESET_COUNT = 3
 BAR_PHASE_TABLE_MASK = $3f
 
@@ -658,12 +658,12 @@ write_debug_values:
     lda bar_motion_preset
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + 12
+    sta DEBUG_HUD_LINE + 15
 
     lda scroll_speed_mode
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + 21
+    sta DEBUG_HUD_LINE + 26
     rts
 
 clear_debug_hud:
@@ -683,28 +683,23 @@ debug_mode:
 
 debug_hud_label:
     .enc "screen"
-    .text "debug pset:"
+    .text "debug (r)mode:"
     .byte $20
     .text "0"
     .byte $20
-    .text "smode:"
+    .text "(s)mode:"
     .byte $20
     .text "0"
     .byte 0
     .enc "petscii"
 
 scroll_table_ptr_lo:
-    .byte <scroll_speed_table_fixed, <scroll_speed_table_subtle, <scroll_speed_table_balanced, <scroll_speed_table_extreme
+    .byte <scroll_speed_table_fixed, <scroll_speed_table_balanced, <scroll_speed_table_extreme, <scroll_speed_table_pulse_max
 scroll_table_ptr_hi:
-    .byte >scroll_speed_table_fixed, >scroll_speed_table_subtle, >scroll_speed_table_balanced, >scroll_speed_table_extreme
+    .byte >scroll_speed_table_fixed, >scroll_speed_table_balanced, >scroll_speed_table_extreme, >scroll_speed_table_pulse_max
 
 scroll_speed_table_fixed:
     .fill 64,224
-scroll_speed_table_subtle:
-    .byte 216,218,221,223,225,227,229,231,233,235,236,237,238,239,240,240
-    .byte 240,240,240,239,238,237,236,235,233,231,229,227,225,223,221,218
-    .byte 216,214,211,209,207,205,203,201,199,197,196,195,194,193,192,192
-    .byte 192,192,192,193,194,195,196,197,199,201,203,205,207,209,211,214
 
 scroll_speed_table_balanced:
     .byte 192,198,204,211,216,222,228,233,237,241,245,248,251,252,252,252
@@ -717,6 +712,12 @@ scroll_speed_table_extreme:
     .byte 252,252,252,252,252,251,245,239,231,223,214,205,195,185,174,163
     .byte 152,141,130,119,109,99,90,81,73,65,59,53,49,45,42,41
     .byte 40,41,42,45,49,53,59,65,73,81,90,99,109,119,130,141
+
+scroll_speed_table_pulse_max:
+    .byte 96,110,124,138,152,168,184,200,216,232,244,252,252,248,240,228
+    .byte 212,196,180,164,148,132,116,100,84,72,60,52,46,42,40,40
+    .byte 64,88,112,136,160,188,216,240,252,252,252,246,236,220,198,174
+    .byte 150,126,104,84,68,56,48,44,42,41,40,40,41,44,50,58
 
 bar_table_ptr_lo:
     .byte <bar_phase_table_soft, <bar_phase_table_medium, <bar_phase_table_medium
@@ -993,6 +994,7 @@ logo_screen_data:
 * = $4000
 msg_scroll:
     .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
+    .text "premi (d) per attivare/disattivare il debug mode.   "
     .text "   *** hello c64 world! ***   "
     .text "sono sid e circa 40 anni fa feci questo logo per il gruppo ics "
     .text "(italian cracking service) non so se abbiano mai saputo chi l'avesse "
