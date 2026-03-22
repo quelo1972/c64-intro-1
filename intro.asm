@@ -995,7 +995,7 @@ logo_screen_data:
 msg_scroll:
     .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
     .text "premi (d) per attivare/disattivare il debug mode.   "
-    .text "   *** hello c64 world! ***   intro realizzata a marzo 2026"
+    .text "   *** hello c64 world! ***   intro realizzata a marzo 2026    "
     .text "sono sid e circa 40 anni fa feci questo logo per il gruppo ics "
     .text "(italian cracking service) non so se abbiano mai saputo chi l'avesse "
     .text "disegnato. i miei amici rasterburner e the rock me lo commissionarono. "
