@@ -3,6 +3,21 @@
 ## [Unreleased]
 _Nessuna modifica al momento._
 
+## [v1.0.4] - 2026-03-22
+### Migliorie
+- **Scroller `S` rifinito**: rimosso il profilo `subtle` perché troppo vicino a `fixed`; nuovo ciclo runtime `fixed -> balanced -> extreme -> pulse_max`.
+- **Nuova modalità `pulse_max`**: aggiunta LUT dedicata (`scroll_speed_table_pulse_max`) con pulsazione più evidente e aggressiva.
+- **HUD debug più chiaro**: etichette aggiornate da `pset`/`smode` a `debug (r)mode` e `(s)mode`.
+- **Preset barre default**: `R` ora parte da modalità `0` (`soft`), in linea con `S` che parte da `0`.
+- **Hint nello scroller**: aggiunto all'inizio del testo il messaggio `premi (d) per attivare/disattivare il debug mode.`
+
+### Correzioni
+- **Allineamento HUD**: aggiornati offset di scrittura dei valori numerici dopo il cambio etichette, evitando mismatch visuale.
+
+### Documentazione
+- **README aggiornato**: allineati controlli runtime (`R`/`S`/`D`), ordine modalità `S`, nuova `pulse_max` e naming HUD `(r)mode`/`(s)mode`.
+- **README default preset**: corretto esempio `BAR_MOTION_PRESET_DEFAULT = 0`.
+
 ## [v1.0.3] - 2026-03-22
 ### Migliorie
 - **Preset runtime raster bars**: cambio preset durante l'esecuzione via tastiera (`R`) senza usare `SPACE`.

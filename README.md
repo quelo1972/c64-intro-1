@@ -55,10 +55,10 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
   - `bar_colors`: Modifica la sequenza di colori delle barre raster.
   - `spr_colors`: Cambia la palette della scia degli sprite.
 - **Velocità Scroller**:
-  - Modalità runtime: tasto `S` durante l'intro (ciclo `fixed -> subtle -> balanced -> extreme`).
+  - Modalità runtime: tasto `S` durante l'intro (ciclo `fixed -> balanced -> extreme -> pulse_max`).
   - Default all'avvio: `SCROLL_SPEED_MODE_DEFAULT` nella sezione scroller di `intro.asm`.
 - **Debug Runtime (HUD)**:
-  - Tasto `D`: mostra/nasconde HUD in basso con preset raster (`pset`) e mode scroller (`smode`).
+  - Tasto `D`: mostra/nasconde HUD in basso con `debug (r)mode` (preset raster) e `(s)mode` (modalità scroller).
 
 ### Modificare le palette colori
 Per cambiare i colori in `intro.asm`, intervieni qui:
@@ -84,13 +84,15 @@ Il movimento verticale delle barre ora usa una **LUT** (Look-Up Table) per simul
 Apri `intro.asm`, sezione `Raster movement (sinusoidal via lookup table)`, e cambia **solo**:
 
 ```asm
-BAR_MOTION_PRESET_DEFAULT = 1
+BAR_MOTION_PRESET_DEFAULT = 0
 ```
 
 Valori disponibili:
 - `0` = `soft` -> movimento più dolce (ampiezza ridotta, velocità normale)
 - `1` = `medium` -> movimento standard
 - `2` = `wild` -> più veloce (fase a doppio passo)
+
+Nel codice attuale il default è `0` (`soft`), quindi `R` parte dalla modalità base come `S`.
 
 Durante l'esecuzione puoi cambiare preset al volo con il tasto `R` (ciclo `soft -> medium -> wild`).
 
@@ -120,19 +122,19 @@ Nota: l'ampiezza dell'oscillazione dipende dalla `bar_phase_table`; la velocità
 ### Regolare la velocità dello Scroller (tasto S)
 Lo scroller supporta quattro modalità runtime, selezionabili con `S`:
 - `fixed`: velocità costante (comportamento classico)
-- `subtle`: pulsazione lieve
 - `balanced`: pulsazione intermedia
 - `extreme`: pulsazione forte
+- `pulse_max`: pulsazione molto marcata
 
 Parametri principali in `intro.asm`:
 - `SCROLL_SPEED_MODE_DEFAULT`
   - `0` = `fixed`
-  - `1` = `subtle`
-  - `2` = `balanced`
-  - `3` = `extreme`
+  - `1` = `balanced`
+  - `2` = `extreme`
+  - `3` = `pulse_max`
 - `scroll_speed_table_fixed`
   - Tabella LUT con velocità fissa (`.fill 64,224`)
-- `scroll_speed_table_subtle` / `scroll_speed_table_balanced` / `scroll_speed_table_extreme`
+- `scroll_speed_table_balanced` / `scroll_speed_table_extreme` / `scroll_speed_table_pulse_max`
   - Tabelle LUT con intensità pulsante crescente
 
 Come funziona:
@@ -144,8 +146,8 @@ Come funziona:
 
 ### Controlli Runtime Rapidi
 - `R`: cambia preset movimento raster bars (`soft -> medium -> wild`)
-- `S`: cambia modalità velocità scroller (`fixed -> subtle -> balanced -> extreme`)
-- `D`: toggle HUD debug (`pset` e `smode`)
+- `S`: cambia modalità velocità scroller (`fixed -> balanced -> extreme -> pulse_max`)
+- `D`: toggle HUD debug (`(r)mode` e `(s)mode`)
 
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
