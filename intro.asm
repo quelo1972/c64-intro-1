@@ -995,7 +995,7 @@ logo_screen_data:
 msg_scroll:
     .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
     .text "premi (d) per attivare/disattivare il debug mode.   "
-    .text "   *** hello c64 world! ***   "
+    .text "   *** hello c64 world! ***   intro realizzata a marzo 2026"
     .text "sono sid e circa 40 anni fa feci questo logo per il gruppo ics "
     .text "(italian cracking service) non so se abbiano mai saputo chi l'avesse "
     .text "disegnato. i miei amici rasterburner e the rock me lo commissionarono. "
@@ -1008,12 +1008,12 @@ msg_scroll:
     .text "di appassionati, retro-maniaci nerd, come lo ero io... e lo sono ancora. "
     .text "ritrovai per caso il logo frugando su csdb.de, vidi che c'era la versione ics import "
     .text "del gioco ikari warrior ii, con mia grande sorpresa vidi il logo, e mi emozionai tantissimo, "
-    .text "era proprio quello che avevo disegnato 35 anni fa!!! "
+    .text "era proprio quello che avevo disegnato 37 anni fa!!! "
     .text "per rendere onore al momento entusiasmante, ho estratto il logo e ci ho costruito sopra questa intro senza pretese. "
     .text "spero vi piaccia, a me ha fatto tornare alla mente tanti ricordi bellissimi legati al mio amato c64, e alla mia passione per l'informatica. "
     .text "il progetto e' alla pagina https://github.com/quelo1972/c64-intro-1, se volete dare un'occhiata al codice sorgente, o contribuire con miglioramenti, siete i benvenuti! "
     .text "ho usato il c64tass cross-assembler per compilarlo, vscode (windows) e vscodium (linux) per editarlo...        "
-    .text "e qualche aiutino da codex e gemini!!!"
+    .text "e qualche aiutino da codex e gemini!!!     "
     .byte 0
     .enc "petscii"
 
