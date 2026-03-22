@@ -93,18 +93,15 @@ wait_vblank:
     cmp $d012
     bne wait_vblank
 
-    dec scroll_x
-    bpl wait_line_exit
-
-    lda #7
-    sta scroll_x
-    jsr do_hard_scroll  ; Shift memory during V-Blank
+    jsr tick_scroller
 
 wait_line_exit:
     ; Wait for raster to leave line 255 to ensure only 1 update per frame
     lda $d012
     cmp #255
     beq wait_line_exit
+    jsr handle_runtime_keys
+    jsr update_debug_hud
     jmp main_loop
 
 ; ------------------------------------------------------------
@@ -179,10 +176,28 @@ store_bar:
     ; update bar position once per frame (when index wraps)
     cpx #0
     bne next_bar_irq
-    
+
     jsr update_bar_phase
 
-    ; Bars done, loop back to Top IRQ (Line 0)
+    ; Bottom HUD split (fixed late line):
+    ; - always after scroller text scanlines
+    ; - still before HUD row rendering
+    lda #242
+    sta $d012
+    lda #<irq_hud
+    sta $0314
+    lda #>irq_hud
+    sta $0315
+    jmp $ea81
+
+irq_hud:
+    lda $d019
+    sta $d019
+
+    lda #$08
+    sta $d016      ; no fine scroll in bottom section (stable HUD)
+
+    ; Loop back to Top IRQ (Line 0)
     lda #0
     sta $d012
     lda #<irq_top
@@ -220,16 +235,70 @@ bar_colors:
 
 SCROLL_LINE = $06d0  ; $0400 + (18*40) -> Riga 18 (Centrata nelle barre)
 ZP_SCROLL = $60
+ZP_SCROLL_SPEED_TABLE = $68
+SCROLL_SPEED_TABLE_MASK = $3f
+SCROLL_SPEED_MODE_DEFAULT = 0
+SCROLL_SPEED_MODE_COUNT = 4
 
 init_scroller:
-    lda #0
     lda #<msg_scroll
     sta ZP_SCROLL
     lda #>msg_scroll
     sta ZP_SCROLL+1
     lda #7
     sta scroll_x
+    lda #SCROLL_SPEED_MODE_DEFAULT
+    sta scroll_speed_mode
+    lda #0
+    sta scroll_speed_idx
+    sta scroll_accum
+    jsr load_scroll_speed_mode
     jsr clear_scroll_line
+    rts
+
+tick_scroller:
+    jsr update_scroll_speed
+
+    ; Fractional speed accumulator:
+    ; carry means "advance 1 pixel this frame"
+    lda scroll_accum
+    clc
+    adc scroll_speed_cur
+    sta scroll_accum
+    bcc done_tick
+
+    dec scroll_x
+    bpl done_tick
+
+    lda #7
+    sta scroll_x
+    jsr do_hard_scroll  ; Shift memory during V-Blank
+done_tick:
+    rts
+
+update_scroll_speed:
+    lda scroll_speed_idx
+    clc
+    adc #1
+    and #SCROLL_SPEED_TABLE_MASK
+    sta scroll_speed_idx
+    tay
+    lda (ZP_SCROLL_SPEED_TABLE),y
+    sta scroll_speed_cur
+    rts
+
+load_scroll_speed_mode:
+    ldx scroll_speed_mode
+    lda scroll_table_ptr_lo,x
+    sta ZP_SCROLL_SPEED_TABLE
+    lda scroll_table_ptr_hi,x
+    sta ZP_SCROLL_SPEED_TABLE+1
+
+    ldy scroll_speed_idx
+    lda (ZP_SCROLL_SPEED_TABLE),y
+    sta scroll_speed_cur
+    lda #0
+    sta scroll_accum
     rts
 
 do_hard_scroll:
@@ -304,6 +373,9 @@ fill_color:
     sta $dae8,x
     inx
     bne fill_color
+    lda #0
+    sta debug_mode
+    jsr clear_debug_hud
     rts
 
 ; ------------------------------------------------------------
@@ -432,9 +504,9 @@ init_irq:
     lda #0
     sta bar_index
     sta bar_phase_idx
-    tax
-    lda bar_phase_table,x
-    sta bar_phase
+    lda #BAR_MOTION_PRESET_DEFAULT
+    sta bar_motion_preset
+    jsr load_bar_motion_preset
     lda #0         ; Start at line 0
     sta $d012
     lda $d011
@@ -450,7 +522,13 @@ init_irq:
 
 scroll_x:
     .byte 7
-scroll_delay:
+scroll_speed_cur:
+    .byte 224
+scroll_accum:
+    .byte 0
+scroll_speed_idx:
+    .byte 0
+scroll_speed_mode:
     .byte 0
 
 bar_index:
@@ -460,51 +538,202 @@ bar_phase:
     .byte 0
 bar_phase_idx:
     .byte 0
+bar_phase_step_cur:
+    .byte 1
+bar_motion_preset:
+    .byte 0
 
 ; ------------------------------------------------------------
 ; Raster movement (sinusoidal via lookup table)
 ; ------------------------------------------------------------
 
-; Presets:
+; Runtime preset (R to cycle):
 ; 0 = soft   (ampiezza ridotta, periodo normale)
-; 1 = medium (attuale)
-; 2 = wild   (ampiezza medium, periodo doppia velocita')
-BAR_MOTION_PRESET = 0
+; 1 = medium (ampiezza piena, periodo normale)
+; 2 = wild   (ampiezza piena, periodo doppia velocita')
+BAR_MOTION_PRESET_DEFAULT = 1
+BAR_PRESET_COUNT = 3
 BAR_PHASE_TABLE_MASK = $3f
 
-.if BAR_MOTION_PRESET = 0
-BAR_PHASE_STEP = 1
-.elsif BAR_MOTION_PRESET = 1
-BAR_PHASE_STEP = 1
-.else
-BAR_PHASE_STEP = 2
-.endif
+ZP_BAR_TABLE = $66
 
 update_bar_phase:
     lda bar_phase_idx
     clc
-    adc #BAR_PHASE_STEP
+    adc bar_phase_step_cur
     sta bar_phase_idx
     lda bar_phase_idx
     and #BAR_PHASE_TABLE_MASK
     sta bar_phase_idx
-    tax
-    lda bar_phase_table,x
+    tay
+    lda (ZP_BAR_TABLE),y
     sta bar_phase
     rts
 
-bar_phase_table:
-.if BAR_MOTION_PRESET = 0
+load_bar_motion_preset:
+    ldx bar_motion_preset
+    lda bar_phase_step_lut,x
+    sta bar_phase_step_cur
+    lda bar_table_ptr_lo,x
+    sta ZP_BAR_TABLE
+    lda bar_table_ptr_hi,x
+    sta ZP_BAR_TABLE+1
+
+    ldy bar_phase_idx
+    lda (ZP_BAR_TABLE),y
+    sta bar_phase
+    rts
+
+handle_runtime_keys:
+    jsr $ff9f      ; KERNAL SCNKEY: scan keyboard matrix now
+    jsr $ffe4      ; KERNAL GETIN (0 if no key)
+    beq key_done
+    cmp #'D'
+    beq toggle_debug
+    cmp #'d'
+    beq toggle_debug
+    cmp #'R'
+    beq cycle_preset
+    cmp #'r'
+    beq cycle_preset
+    cmp #'S'
+    beq cycle_scroll_mode
+    cmp #'s'
+    beq cycle_scroll_mode
+    bne key_done
+
+toggle_debug:
+    lda debug_mode
+    eor #1
+    sta debug_mode
+    bne key_done
+    jsr clear_debug_hud
+    rts
+
+cycle_preset:
+    inc bar_motion_preset
+    lda bar_motion_preset
+    cmp #BAR_PRESET_COUNT
+    bcc apply_new_preset
+    lda #0
+    sta bar_motion_preset
+
+apply_new_preset:
+    jsr load_bar_motion_preset
+    rts
+
+cycle_scroll_mode:
+    inc scroll_speed_mode
+    lda scroll_speed_mode
+    cmp #SCROLL_SPEED_MODE_COUNT
+    bcc apply_new_scroll_mode
+    lda #0
+    sta scroll_speed_mode
+
+apply_new_scroll_mode:
+    jsr load_scroll_speed_mode
+key_done:
+    rts
+
+DEBUG_HUD_LINE = $07c0
+DEBUG_HUD_COLOR_LINE = $dbc0
+
+update_debug_hud:
+    lda debug_mode
+    bne write_debug_hud
+    rts
+
+write_debug_hud:
+    ldx #0
+copy_hud_label:
+    lda debug_hud_label,x
+    beq write_debug_values
+    sta DEBUG_HUD_LINE,x
+    lda #1
+    sta DEBUG_HUD_COLOR_LINE,x
+    inx
+    bne copy_hud_label
+
+write_debug_values:
+    lda bar_motion_preset
+    clc
+    adc #'0'
+    sta DEBUG_HUD_LINE + 12
+
+    lda scroll_speed_mode
+    clc
+    adc #'0'
+    sta DEBUG_HUD_LINE + 21
+    rts
+
+clear_debug_hud:
+    ldx #39
+    lda #$20
+clear_debug_hud_loop:
+    sta DEBUG_HUD_LINE,x
+    dex
+    bpl clear_debug_hud_loop
+    rts
+
+bar_phase_step_lut:
+    .byte 1,1,2
+
+debug_mode:
+    .byte 0
+
+debug_hud_label:
+    .enc "screen"
+    .text "debug pset:"
+    .byte $20
+    .text "0"
+    .byte $20
+    .text "smode:"
+    .byte $20
+    .text "0"
+    .byte 0
+    .enc "petscii"
+
+scroll_table_ptr_lo:
+    .byte <scroll_speed_table_fixed, <scroll_speed_table_subtle, <scroll_speed_table_balanced, <scroll_speed_table_extreme
+scroll_table_ptr_hi:
+    .byte >scroll_speed_table_fixed, >scroll_speed_table_subtle, >scroll_speed_table_balanced, >scroll_speed_table_extreme
+
+scroll_speed_table_fixed:
+    .fill 64,224
+scroll_speed_table_subtle:
+    .byte 216,218,221,223,225,227,229,231,233,235,236,237,238,239,240,240
+    .byte 240,240,240,239,238,237,236,235,233,231,229,227,225,223,221,218
+    .byte 216,214,211,209,207,205,203,201,199,197,196,195,194,193,192,192
+    .byte 192,192,192,193,194,195,196,197,199,201,203,205,207,209,211,214
+
+scroll_speed_table_balanced:
+    .byte 192,198,204,211,216,222,228,233,237,241,245,248,251,252,252,252
+    .byte 252,252,252,252,251,248,245,241,237,233,228,222,216,211,204,198
+    .byte 192,186,180,173,168,162,156,151,147,143,139,136,133,131,129,128
+    .byte 128,128,129,131,133,136,139,143,147,151,156,162,168,173,180,186
+
+scroll_speed_table_extreme:
+    .byte 152,163,174,185,195,205,214,223,231,239,245,251,252,252,252,252
+    .byte 252,252,252,252,252,251,245,239,231,223,214,205,195,185,174,163
+    .byte 152,141,130,119,109,99,90,81,73,65,59,53,49,45,42,41
+    .byte 40,41,42,45,49,53,59,65,73,81,90,99,109,119,130,141
+
+bar_table_ptr_lo:
+    .byte <bar_phase_table_soft, <bar_phase_table_medium, <bar_phase_table_medium
+bar_table_ptr_hi:
+    .byte >bar_phase_table_soft, >bar_phase_table_medium, >bar_phase_table_medium
+
+bar_phase_table_soft:
     .byte 20,22,23,25,26,28,29,30,31,32,33,34,35,35,36,36
     .byte 36,36,36,35,35,34,33,32,31,30,29,28,26,25,23,22
     .byte 20,18,17,15,14,12,11,10,9,8,7,6,5,5,4,4
     .byte 4,4,4,5,5,6,7,8,9,10,11,12,14,15,17,18
-.else
-    .byte 20,22,24,26,28,29,31,33,34,35,37,38,38,39,40,40
-    .byte 40,40,40,39,38,38,37,35,34,33,31,29,28,26,24,22
+
+bar_phase_table_medium:
+    .byte 20,22,24,26,28,29,31,33,34,35,37,38,38,39,39,39
+    .byte 39,39,39,39,38,38,37,35,34,33,31,29,28,26,24,22
     .byte 20,18,16,14,12,11,9,7,6,5,3,2,2,1,0,0
     .byte 0,0,0,1,2,2,3,5,6,7,9,11,12,14,16,18
-.endif
 
 ; ------------------------------------------------------------
 ; Sprites Logic

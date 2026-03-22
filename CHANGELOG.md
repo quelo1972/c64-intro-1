@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+_Nessuna modifica al momento._
+
+## [v1.0.3] - 2026-03-22
+### Migliorie
+- **Preset runtime raster bars**: cambio preset durante l'esecuzione via tastiera (`R`) senza usare `SPACE`.
+- **Input più sicuro per intro attachate**: evitato conflitto con `SPACE`, spesso usato per avvio programma.
+- **Scroller runtime mode**: aggiunto cambio modalità velocità con tasto `S` (`fixed`, `subtle`, `balanced`, `extreme`).
+- **Scroller accel/decel dolce**: introdotto motore frazionario con LUT di velocità per variazione fluida della cadenza.
+- **Preset scroller multipli**: aggiunti tre profili pulsanti con intensità crescente.
+- **Debug runtime HUD (`D`)**: reintrodotto toggle debug con tasto `D`/`d` e overlay in basso con stato `pset` (preset barre) e `smode` (modalità scroller).
+- **HUD stabile e leggibile**: aggiunto split raster dedicato a fine frame per disattivare il fine-scroll solo nella zona HUD, mantenendo testo fermo e charset corretto.
+
+### Correzioni
+- **Glitch al margine basso raster bars**: corretta la catena IRQ in prossimità del picco inferiore, eliminando lampeggi/corruzioni video quando l'oscillazione raggiunge il massimo.
+- **Drop audio ai picchi**: risolto jitter di timing che poteva far perdere colpi al `music_tick` durante i frame critici.
+- **HUD `smode`**: corretto offset di scrittura del valore runtime (digit update coerente con il tasto `S`).
+- **Ultima riga scroller**: ridotto il picco della LUT `bar_phase_table_medium` (`40 -> 39`) per evitare deformazioni della scanline inferiore dei caratteri al massimo dell'oscillazione.
+
+### Documentazione
+- **README aggiornato**: aggiunte istruzioni per ciclo `S` a 4 modalità e parametri LUT scroller.
+- **README controlli runtime**: documentati i tasti `R`/`S`/`D` e il raster split a 4 zone (Top, Middle, Bars, HUD).
+
 ## [v1.0.2] - 2026-03-21
 ### Documentazione
 - **README migliorato**: spiegazione più precisa di cosa modificare in `intro.asm` per regolare la velocità della raster bar.

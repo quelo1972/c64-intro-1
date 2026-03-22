@@ -54,7 +54,11 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
 - **Colori**:
   - `bar_colors`: Modifica la sequenza di colori delle barre raster.
   - `spr_colors`: Cambia la palette della scia degli sprite.
-- **Velocità Scroller**: In `main_loop`, la variabile `scroll_x` controlla lo spostamento pixel per pixel.
+- **Velocità Scroller**:
+  - Modalità runtime: tasto `S` durante l'intro (ciclo `fixed -> subtle -> balanced -> extreme`).
+  - Default all'avvio: `SCROLL_SPEED_MODE_DEFAULT` nella sezione scroller di `intro.asm`.
+- **Debug Runtime (HUD)**:
+  - Tasto `D`: mostra/nasconde HUD in basso con preset raster (`pset`) e mode scroller (`smode`).
 
 ### Modificare le palette colori
 Per cambiare i colori in `intro.asm`, intervieni qui:
@@ -80,13 +84,15 @@ Il movimento verticale delle barre ora usa una **LUT** (Look-Up Table) per simul
 Apri `intro.asm`, sezione `Raster movement (sinusoidal via lookup table)`, e cambia **solo**:
 
 ```asm
-BAR_MOTION_PRESET = 0
+BAR_MOTION_PRESET_DEFAULT = 1
 ```
 
 Valori disponibili:
 - `0` = `soft` -> movimento più dolce (ampiezza ridotta, velocità normale)
 - `1` = `medium` -> movimento standard
 - `2` = `wild` -> più veloce (fase a doppio passo)
+
+Durante l'esecuzione puoi cambiare preset al volo con il tasto `R` (ciclo `soft -> medium -> wild`).
 
 Poi ricompila:
 
@@ -100,21 +106,46 @@ La velocità verticale è determinata da `BAR_PHASE_STEP`:
 - `BAR_PHASE_STEP = 1` -> velocità normale
 - `BAR_PHASE_STEP = 2` -> circa 2x più veloce
 
-Nel codice attuale `BAR_PHASE_STEP` viene scelto automaticamente in base a `BAR_MOTION_PRESET` tramite il blocco:
+Nel codice attuale `BAR_PHASE_STEP` viene scelto automaticamente in base al preset runtime tramite:
 
 ```asm
-.if BAR_MOTION_PRESET = 0
-BAR_PHASE_STEP = 1
-.elsif BAR_MOTION_PRESET = 1
-BAR_PHASE_STEP = 1
-.else
-BAR_PHASE_STEP = 2
-.endif
+bar_phase_step_lut:
+    .byte 1,1,2
 ```
 
-Se vuoi una velocità personalizzata, modifica questo blocco (esempio: rendere anche `medium` veloce impostando `BAR_PHASE_STEP = 2` nel ramo preset `1`).
+Se vuoi una velocità personalizzata, modifica la LUT degli step (esempio: `.byte 1,2,2` per avere `medium` e `wild` più veloci).
 
 Nota: l'ampiezza dell'oscillazione dipende dalla `bar_phase_table`; la velocità dipende da `BAR_PHASE_STEP`.
+
+### Regolare la velocità dello Scroller (tasto S)
+Lo scroller supporta quattro modalità runtime, selezionabili con `S`:
+- `fixed`: velocità costante (comportamento classico)
+- `subtle`: pulsazione lieve
+- `balanced`: pulsazione intermedia
+- `extreme`: pulsazione forte
+
+Parametri principali in `intro.asm`:
+- `SCROLL_SPEED_MODE_DEFAULT`
+  - `0` = `fixed`
+  - `1` = `subtle`
+  - `2` = `balanced`
+  - `3` = `extreme`
+- `scroll_speed_table_fixed`
+  - Tabella LUT con velocità fissa (`.fill 64,224`)
+- `scroll_speed_table_subtle` / `scroll_speed_table_balanced` / `scroll_speed_table_extreme`
+  - Tabelle LUT con intensità pulsante crescente
+
+Come funziona:
+- Lo scroller non avanza ogni frame in modo rigido.
+- A ogni frame legge una velocità dalla LUT (`scroll_speed_cur`).
+- La velocità alimenta un accumulatore frazionario (`scroll_accum`).
+- Quando l'accumulatore produce carry, lo scroller avanza di 1 pixel.
+- Risultato: in modalità pulsanti il testo accelera e rallenta in modo morbido.
+
+### Controlli Runtime Rapidi
+- `R`: cambia preset movimento raster bars (`soft -> medium -> wild`)
+- `S`: cambia modalità velocità scroller (`fixed -> subtle -> balanced -> extreme`)
+- `D`: toggle HUD debug (`pset` e `smode`)
 
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
@@ -133,4 +164,4 @@ Il logo è stato recuperato dall'intro originale "ICS Import" (`ics-15.prg`) uti
 
 ## Dettagli Tecnici
 - **Sprite Trail**: L'effetto scia non calcola 8 posizioni diverse ogni frame. Utilizza un **buffer circolare** (`trail_history`) che registra la posizione dello sprite "testa". Gli altri 7 sprite leggono lo stesso storico ma con un indice ritardato nel tempo, creando un movimento fluido a "serpente".
-- **Raster Split**: L'interrupt divide lo schermo in tre zone logiche (Top, Middle, Bars) per permettere di avere il logo statico in alto e lo scroller in basso, gestendo indipendentemente modalità video e scroll hardware.
+- **Raster Split**: L'interrupt divide lo schermo in quattro zone logiche (Top, Middle, Bars, HUD). La zona HUD usa uno split raster dedicato a fine frame per disattivare il fine-scroll orizzontale e mantenere la scritta debug stabile e leggibile.
