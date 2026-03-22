@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+_Nessuna modifica al momento._
+
+## [v1.0.3] - 2026-03-22
 ### Migliorie
 - **Preset runtime raster bars**: cambio preset durante l'esecuzione via tastiera (`R`) senza usare `SPACE`.
 - **Input più sicuro per intro attachate**: evitato conflitto con `SPACE`, spesso usato per avvio programma.
