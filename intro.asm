@@ -641,16 +641,17 @@ DEBUG_HUD_COLOR_LINE = $dbc0
 update_debug_hud:
     lda debug_mode
     bne write_debug_hud
-    rts
+    jmp write_github_footer  ; Se debug è OFF, scrive il footer GitHub
 
 write_debug_hud:
+    jsr clear_debug_hud      ; Pulisce prima di scrivere (per cancellare eventuale link)
     ldx #0
 copy_hud_label:
     lda debug_hud_label,x
     beq write_debug_values
-    sta DEBUG_HUD_LINE,x
+    sta DEBUG_HUD_LINE + 6,x
     lda #1
-    sta DEBUG_HUD_COLOR_LINE,x
+    sta DEBUG_HUD_COLOR_LINE + 6,x
     inx
     bne copy_hud_label
 
@@ -658,12 +659,26 @@ write_debug_values:
     lda bar_motion_preset
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + 15
+    sta DEBUG_HUD_LINE + 21    ; 15 + 6 offset
 
     lda scroll_speed_mode
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + 26
+    sta DEBUG_HUD_LINE + 32    ; 26 + 6 offset
+    rts
+
+write_github_footer:
+    ; Scrive il link GitHub centrato nella riga di debug
+    ldx #0
+footer_loop:
+    lda msg_footer_github,x
+    beq footer_done
+    sta DEBUG_HUD_LINE,x      ; Offset 0 (40 char = full width)
+    lda #7                    ; Colore Giallo
+    sta DEBUG_HUD_COLOR_LINE,x
+    inx
+    bne footer_loop
+footer_done:
     rts
 
 clear_debug_hud:
@@ -683,7 +698,7 @@ debug_mode:
 
 debug_hud_label:
     .enc "screen"
-    .text "debug (r)mode:"
+    .text "setup (r)mode:"
     .byte $20
     .text "0"
     .byte $20
@@ -691,6 +706,11 @@ debug_hud_label:
     .byte $20
     .text "0"
     .byte 0
+
+msg_footer_github:
+    .text "https://github.com/quelo1972/c64-intro-1"
+    .byte 0
+
     .enc "petscii"
 
 scroll_table_ptr_lo:
@@ -994,11 +1014,15 @@ logo_screen_data:
 * = $4000
 msg_scroll:
     .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
-    .text "premi (d) per attivare/disattivare il debug mode.   "
+    .text "premi (d) per mostrare/nascondere il setup mode.       "
     .text "   *** hello c64 world! ***   intro realizzata a marzo 2026    "
     .text "sono sid e circa 40 anni fa feci questo logo per il gruppo ics "
     .text "(italian cracking service) non so se abbiano mai saputo chi l'avesse "
-    .text "disegnato. i miei amici rasterburner e the rock me lo commissionarono. "
+    .text "disegnato. in realta' quello che feci io e' solamente il logo tra i 2 teschi, "
+    .text "che provenivano da qualche altra parte, se qualcuno sa da dove venivano, mi piacerebbe saperlo, "
+    .text "magari scrivetemelo alla pagina github del progetto. "
+    .text "la grafica ics poi venne usata come base per creare il logo completo con i teschi e le scritte. "
+    .text "i miei amici rasterburner e the rock me lo commissionarono. "
     .text "da grande appassionato del nostro amato biscottone presi questo compito "
     .text "con grande abnegazione, avevo 17 anni nel 1989!!! fu il fantastico commodore 64 "
     .text "che mi introdusse all'informatica, la mia grande passione, che divenne poi "
