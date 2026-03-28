@@ -740,8 +740,12 @@ bar_phase_table_medium:
 ; Sprites Logic
 ; ------------------------------------------------------------
 
-SPRITE_DATA = $3000
+SPRITE_DATA = $3000 ; Frame 0 (Piccolo)
+SPRITE_DATA1 = $3040 ; Frame 1 (Medio)
+SPRITE_DATA2 = $3080 ; Frame 2 (Grande)
 SPRITE_PTR  = $07f8  ; Screen $0400 + $3f8 offset for Sprite 0
+
+SPRITE_ANIM_SPEED = 4 ; Velocità della pulsazione (frame tra uno step e l'altro)
 
 TRAIL_DELAY = 8       ; Delay in frames between trail segments. Aumentalo per più spazio.
 TRAIL_BUFFER_SIZE = 64  ; Power of 2, deve essere >= 8 * TRAIL_DELAY
@@ -750,13 +754,15 @@ TRAIL_BUFFER_MASK = TRAIL_BUFFER_SIZE - 1
 history_idx_zp = $fb  ; ZP temp variable for history index
 msb_collect_zp = $fd  ; ZP temp for collecting MSB bits
 prio_collect_zp = $fc ; ZP temp for collecting Priority bits
+temp_spr_idx = $fe    ; ZP temp per l'indice dello sprite
 
 init_sprites:
     ; Enable all 8 Sprites
     lda #$ff
     sta $d015
     
-    ; Set Sprite Priority to Background (Sprites go behind text pixels)
+    ; Set Sprite Priority to Front (0 = Sempre visibili sopra lo sfondo)
+    lda #0
     sta $d01b
 
     ldx #7
@@ -770,16 +776,23 @@ init_spr_loop:
     dex
     bpl init_spr_loop
 
+    ; Inizializzazione variabili animazione
+    lda #0
+    sta spr_anim_timer
+    sta spr_anim_idx
+
     ; Init positions
     lda #100
     sta spr_x
     sta spr_y
     lda #0
+    sta spr_x_hi
     sta spr_z_depth
 
     ; Fill history buffers with start position to avoid artifacts
     ldx #TRAIL_BUFFER_SIZE - 1
 fill_hist_loop:
+    lda #100
     sta trail_history_x,x
     sta trail_history_y,x
     lda #0
@@ -793,6 +806,17 @@ fill_hist_loop:
     rts
 
 update_sprites:
+    ; --- Part 0: Update global animation clock ---
+    dec spr_anim_timer
+    bpl skip_anim_update
+    lda #SPRITE_ANIM_SPEED
+    sta spr_anim_timer
+    inc spr_anim_idx
+    lda spr_anim_idx
+    and #3            ; Ciclo di 4 step per la sequenza 0,1,2,1
+    sta spr_anim_idx
+skip_anim_update:
+
     ; --- Part 1: Update head sprite position (bouncing logic) ---
     ; Update X
     ; 16-bit signed addition: spr_x (16bit) = spr_x + spr_dx (8bit signed)
@@ -827,21 +851,22 @@ dx_done:
 check_left:
     ; Left Limit Check (< 24)
     lda spr_x_hi
-    bne update_y     ; If Hi != 0, we are safe > 24
+    bmi do_invert_x  ; Se negativo, rimbalza subito
+    bne update_y     ; Se > 0 (es. 1), siamo oltre i 255 pixel, quindi ok
     lda spr_x
     cmp #24
     bcs update_y
 
 do_invert_x:
-    jmp invert_x
-
-    ; (Jump target helper)
-invert_x:
-    ; Toggle Z-depth (priority) on wall bounce
+    ; Ripristina l'effetto profondità: passa davanti/dietro al rimbalzo
     lda spr_z_depth
     eor #1
     sta spr_z_depth
 
+    jmp invert_x
+
+    ; (Jump target helper)
+invert_x:
     lda spr_dx
     eor #$ff     ; Negate direction
     clc
@@ -900,8 +925,25 @@ update_vic_loop:
     lda trail_history_y,y
     sta $d001,x
 
-    ; Collect MSB (9th bit)
+    ; Calcola il frame dell'animazione con offset (effetto onda)
+    txa
+    lsr               ; Ottiene l'indice dello sprite (0-7)
+    sta temp_spr_idx
+    clc
+    adc spr_anim_idx  ; Sfalsa l'animazione in base alla posizione nella scia
+    and #3            ; Resta nel range 0-3 della sequenza
+    tay
+    lda spr_anim_seq,y ; Ottiene il frame effettivo (0, 1, 2, o 1)
+    clc
+    adc #$c0          ; Base pointer $3000 ($3000 / 64 = $C0)
+    ldy temp_spr_idx
+    sta SPRITE_PTR,y
+    ldy history_idx_zp ; Ripristina Y per i calcoli successivi sulla scia
+
+    ; Collect MSB (9th bit) - Ripristina Y per leggere correttamente dalla storia
+    ldy history_idx_zp
     lda trail_history_x_msb,y
+    and #1            ; Considera solo il bit 0 per sicurezza
     beq no_msb
     lda msb_table,x   ; Get bitmask for current sprite
     ora msb_collect_zp
@@ -946,6 +988,10 @@ spr_y:  .byte 100
 spr_dx: .byte 1
 spr_dy: .byte 1
 
+spr_anim_timer: .byte 0
+spr_anim_idx:   .byte 0
+spr_anim_seq:   .byte 0, 1, 2, 1  ; Sequenza: Piccolo -> Medio -> Grande -> Medio
+
 trail_history_ptr: .byte 0
 trail_history_x:   .fill TRAIL_BUFFER_SIZE
 trail_history_x_msb: .fill TRAIL_BUFFER_SIZE
@@ -956,7 +1002,8 @@ msb_table:
     .byte 1,0, 2,0, 4,0, 8,0, 16,0, 32,0, 64,0, 128,0
 
 spr_colors:
-    .byte 1, 13, 7, 10, 8, 2, 9, 0 ; Palette: White -> Yellow/Red tones -> Dark
+    ; Palette Rainbow Classica: Molto satura e visibile
+    .byte 1, 7, 13, 3, 14, 10, 8, 2
 
 ; ------------------------------------------------------------
 ; SID data (loaded at $1000)
@@ -971,12 +1018,25 @@ sid_data_end:
 ; Sprite Data (Located at $3000)
 ; ------------------------------------------------------------
 * = SPRITE_DATA
-    ; Simple Ball Shape (24x21 pixels, single color)
-    ; 3 bytes per row
+    ; Frame 0: Small Ball
+    .byte 0,0,0, 0,0,0, 0,24,0, 0,60,0, 0,126,0, 0,126,0
+    .byte 0,255,0, 0,255,0, 0,255,0, 0,255,0, 0,255,0, 0,126,0
+    .byte 0,126,0, 0,60,0, 0,24,0, 0,0,0, 0,0,0, 0,0,0
+    .fill 64-63, 0
+
+* = SPRITE_DATA1
+    ; Frame 1: Medium Ball
+    .byte 0,0,0, 0,60,0, 0,126,0, 1,255,128, 3,255,192, 3,255,192
+    .byte 7,255,224, 7,255,224, 7,255,224, 7,255,224, 7,255,224, 3,255,192
+    .byte 3,255,192, 1,255,128, 0,126,0, 0,60,0, 0,0,0, 0,0,0
+    .fill 64-63, 0
+
+* = SPRITE_DATA2
+    ; Frame 2: Large Ball (original)
     .byte 0,0,0, 0,60,0, 0,255,0, 1,255,128, 7,255,224, 15,255,240
     .byte 31,255,248, 31,255,248, 63,255,252, 63,255,252, 63,255,252, 31,255,248
     .byte 31,255,248, 15,255,240, 7,255,224, 1,255,128, 0,255,0, 0,60,0
-    .byte 0,0,0, 0,0,0, 0,0,0  ; Padding
+    .fill 64-63, 0
 
 ; ------------------------------------------------------------
 ; Logo Data (Appended at the end to avoid memory conflict)

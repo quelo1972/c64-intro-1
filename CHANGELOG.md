@@ -1,7 +1,11 @@
 # Changelog
 
 ## [Unreleased]
-_Nessuna modifica al momento._
+### Funzionalità
+- **Sprite Animati (3 Frame)**: Introdotta animazione pulsante (Piccolo, Medio, Grande) con sequenza fluida a 4 step.
+- **Effetto Onda**: Sincronizzazione sfalsata dell'animazione lungo la scia degli sprite per un movimento organico.
+- **Palette Rainbow Stabilizzata**: Consolidata la palette a 8 colori ad alto contrasto per la scia.
+- **Z-Depth Logic**: Mantenuto il sistema di priorità per il passaggio degli sprite dietro/davanti al logo.
 
 ## [v1.0.4] - 2026-03-22
 ### Migliorie
