@@ -7,6 +7,13 @@
 - **Palette Rainbow Stabilizzata**: Consolidata la palette a 8 colori ad alto contrasto per la scia.
 - **Z-Depth Logic**: Mantenuto il sistema di priorità per il passaggio degli sprite dietro/davanti al logo.
 
+## [v1.0.5] - 2026-03-24
+### Funzionalità
+- **Footer Informativo Condiviso**: L'ultima riga dello schermo ora mostra il link completo al repository GitHub (Giallo) quando il menu info è disattivato.
+- **Modalità Setup**: Rinominata la vecchia "Debug Mode" in "Setup Mode" per riflettere le funzionalità interattive utente.
+- **Toggle 'D'**: Il tasto `D` ora agisce come switch tra il Footer GitHub e i valori di Setup ((r)mode, (s)mode).
+- **Layout**: Ottimizzata la centratura delle etichette e utilizzato l'intero width (40 colonne) per l'URL.
+
 ## [v1.0.4] - 2026-03-22
 ### Migliorie
 - **Scroller `S` rifinito**: rimosso il profilo `subtle` perché troppo vicino a `fixed`; nuovo ciclo runtime `fixed -> balanced -> extreme -> pulse_max`.

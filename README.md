@@ -57,8 +57,8 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
 - **Velocità Scroller**:
   - Modalità runtime: tasto `S` durante l'intro (ciclo `fixed -> balanced -> extreme -> pulse_max`).
   - Default all'avvio: `SCROLL_SPEED_MODE_DEFAULT` nella sezione scroller di `intro.asm`.
-- **Debug Runtime (HUD)**:
-  - Tasto `D`: mostra/nasconde HUD in basso con `debug (r)mode` (preset raster) e `(s)mode` (modalità scroller).
+ - **Setup Runtime / Footer**:
+   - Tasto `D`: alterna la visualizzazione tra il link GitHub e i dati di setup (`setup (r)mode` e `(s)mode`).
 
 ### Modificare le palette colori
 Per cambiare i colori in `intro.asm`, intervieni qui:
@@ -147,7 +147,7 @@ Come funziona:
 ### Controlli Runtime Rapidi
 - `R`: cambia preset movimento raster bars (`soft -> medium -> wild`)
 - `S`: cambia modalità velocità scroller (`fixed -> balanced -> extreme -> pulse_max`)
-- `D`: toggle HUD debug (`(r)mode` e `(s)mode`)
+ - `D`: toggle Footer/Setup (`URL GitHub` <-> `Info Mode`)
 
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
