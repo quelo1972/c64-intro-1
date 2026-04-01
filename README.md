@@ -81,7 +81,7 @@ Mappa colori C64 (0-15):
 Il movimento verticale delle barre ora usa una **LUT** (Look-Up Table) per simulare una sinusoide: più lento ai bordi, più veloce verso il centro.
 
 #### Modifica rapida (consigliata)
-Apri `intro.asm`, sezione `Raster movement (sinusoidal via lookup table)`, e cambia **solo**:
+Apri `intro.asm`, sezione `Raster movement (sinusoidal via lookup table)`, e cambia il valore di `BAR_MOTION_PRESET_DEFAULT`:
 
 ```asm
 BAR_MOTION_PRESET_DEFAULT = 0

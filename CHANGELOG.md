@@ -8,6 +8,18 @@
 - **Rilocazione Memoria**: Spostate le variabili degli sprite a `$3300` per evitare collisioni con la musica a `$1000`.
 - **Fix Palette**: Ripristinata la sequenza corretta (Bianco, V.Chiaro, Giallo, Rosa, Arancio, Rosso, Marrone, Nero).
 
+### Migliorie
+- **HUD Debug Ristrutturato**: Riga di debug centrata (riga 23) e aggiunta l'URL del progetto GitHub sull'ultima riga dello schermo.
+- **Ampiezza Barre Raster Uniforme**: Tutte le modalità delle barre raster (soft, medium, wild) ora hanno la stessa ampiezza di oscillazione, differenziandosi solo per la velocità.
+- **Velocità Barre Raster Frazionaria**: Introdotta logica di passo frazionario per le barre: la modalità 'super-lenta' (r=0) avanza di 0.5 step/frame, 'lenta' (r=1) di 1.0 step/frame, e 'veloce' (r=2) di 2.0 step/frame.
+- **Scroller Centrato Verticalmente**: La posizione verticale dello scroller è stata regolata (riga 17) per essere perfettamente centrata rispetto all'oscillazione delle barre raster.
+- **Sincronizzazione Audio Migliorata**: Risolti problemi di desync audio riposizionando le variabili temporanee degli sprite e ottimizzando il timing degli IRQ.
+- **Simmetria Oscillazione Barre**: Ricalcolate le tabelle sinusoidali per garantire un'oscillazione perfettamente simmetrica e fluida.
+
+### Correzioni
+- **Flickering HUD da Sprite**: Risolto il micro-disturbo sulla riga di debug causato dagli sprite anticipando lo split raster dell'HUD a riga 233.
+- **Doppio Rimbalzo Barre Raster**: Eliminato l'effetto di "doppio rimbalzo" e asimmetria nell'oscillazione delle barre raster.
+
 ## [v1.0.4] - 2026-03-22
 ### Migliorie
 - **Scroller `S` rifinito**: rimosso il profilo `subtle` perché troppo vicino a `fixed`; nuovo ciclo runtime `fixed -> balanced -> extreme -> pulse_max`.
