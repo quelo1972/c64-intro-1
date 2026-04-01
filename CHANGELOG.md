@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v1.1.0] - 2026-04-01
 ### Funzionalità
 - **Sprite Animati (5 Frame)**: Implementata animazione pulsante con cinque stadi per una maggiore fluidità e sequenza "ping-pong".
 - **Effetto Onda (Wave)**: Introdotto offset nell'animazione degli sprite della scia per un movimento coordinato ma sfalsato.
