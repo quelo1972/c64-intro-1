@@ -101,6 +101,8 @@ wait_line_exit:
     cmp #255
     beq wait_line_exit
     jsr handle_runtime_keys
+    jsr update_sprites
+    jsr update_bar_phase
     jsr update_debug_hud
     jmp main_loop
 
@@ -125,14 +127,13 @@ irq_top:
     sta $d016
 
     jsr music_tick ; Constant 50Hz music update
-    jsr update_sprites
     
     ; Setup for Raster Bars
     lda #0
     sta bar_index
 
     ; Setup next IRQ for Split (enable scrolling before text)
-    lda #146       ; Line 146 (Subito dopo il logo, prima dello scroller a 147)
+    lda #140       ; Anticipato a 140 per dare margine alla prima barra
     sta $d012
     lda #<irq_split
     sta $0314
@@ -173,16 +174,13 @@ irq_bars:
 
 store_bar:
     stx bar_index
-    ; update bar position once per frame (when index wraps)
     cpx #0
     bne next_bar_irq
-
-    jsr update_bar_phase
 
     ; Bottom HUD split (fixed late line):
     ; - always after scroller text scanlines
     ; - still before HUD row rendering
-    lda #242
+    lda #233
     sta $d012
     lda #<irq_hud
     sta $0314
@@ -224,7 +222,7 @@ irq_done:
 BAR_COUNT = 11
 
 bar_lines:
-    .byte 150,155,160,165,170,175,180,185,190,195,200
+    .byte 146,151,156,161,166,171,176,181,186,191,196
 
 bar_colors:
     .byte 0,2,8,10,7,1,7,10,8,2,0
@@ -233,7 +231,7 @@ bar_colors:
 ; Scroller (line 24, 40 columns)
 ; ------------------------------------------------------------
 
-SCROLL_LINE = $06d0  ; $0400 + (18*40) -> Riga 18 (Centrata nelle barre)
+SCROLL_LINE = $06a8  ; $0400 + (17*40) -> Riga 17 (Centrata verticalmente nell'oscillazione)
 ZP_SCROLL = $60
 ZP_SCROLL_SPEED_TABLE = $68
 SCROLL_SPEED_TABLE_MASK = $3f
@@ -343,7 +341,7 @@ clear_chars:
     ldx #0
     lda #1          ; white
 clear_colors:
-    sta $dad0,x     ; color RAM line 18 ($d800 + 18*40)
+    sta $daa8,x     ; color RAM line 17 ($d800 + 17*40)
     inx
     cpx #40
     bne clear_colors
@@ -538,8 +536,12 @@ bar_phase:
     .byte 0
 bar_phase_idx:
     .byte 0
-bar_phase_step_cur:
+bar_phase_frac:
+    .byte 0
+bar_phase_step_hi_cur:
     .byte 1
+bar_phase_step_lo_cur:
+    .byte 0
 bar_motion_preset:
     .byte 0
 
@@ -558,11 +560,12 @@ BAR_PHASE_TABLE_MASK = $3f
 ZP_BAR_TABLE = $66
 
 update_bar_phase:
-    lda bar_phase_idx
+    lda bar_phase_frac
     clc
-    adc bar_phase_step_cur
-    sta bar_phase_idx
+    adc bar_phase_step_lo_cur
+    sta bar_phase_frac
     lda bar_phase_idx
+    adc bar_phase_step_hi_cur
     and #BAR_PHASE_TABLE_MASK
     sta bar_phase_idx
     tay
@@ -572,8 +575,10 @@ update_bar_phase:
 
 load_bar_motion_preset:
     ldx bar_motion_preset
-    lda bar_phase_step_lut,x
-    sta bar_phase_step_cur
+    lda bar_phase_step_hi_lut,x
+    sta bar_phase_step_hi_cur
+    lda bar_phase_step_lo_lut,x
+    sta bar_phase_step_lo_cur
     lda bar_table_ptr_lo,x
     sta ZP_BAR_TABLE
     lda bar_table_ptr_hi,x
@@ -635,8 +640,11 @@ apply_new_scroll_mode:
 key_done:
     rts
 
-DEBUG_HUD_LINE = $07c0
-DEBUG_HUD_COLOR_LINE = $dbc0
+DEBUG_HUD_LINE = $0798
+DEBUG_HUD_COLOR_LINE = $db98
+URL_HUD_LINE = $07c0
+URL_HUD_COLOR_LINE = $dbc0
+HUD_X_OFFSET = 6
 
 update_debug_hud:
     lda debug_mode
@@ -648,9 +656,9 @@ write_debug_hud:
 copy_hud_label:
     lda debug_hud_label,x
     beq write_debug_values
-    sta DEBUG_HUD_LINE,x
+    sta DEBUG_HUD_LINE + HUD_X_OFFSET,x
     lda #1
-    sta DEBUG_HUD_COLOR_LINE,x
+    sta DEBUG_HUD_COLOR_LINE + HUD_X_OFFSET,x
     inx
     bne copy_hud_label
 
@@ -658,12 +666,21 @@ write_debug_values:
     lda bar_motion_preset
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + 15
+    sta DEBUG_HUD_LINE + HUD_X_OFFSET + 15
 
     lda scroll_speed_mode
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + 26
+    sta DEBUG_HUD_LINE + HUD_X_OFFSET + 26
+
+    ldx #39
+copy_url_loop:
+    lda debug_url,x
+    sta URL_HUD_LINE,x
+    lda #1
+    sta URL_HUD_COLOR_LINE,x
+    dex
+    bpl copy_url_loop
     rts
 
 clear_debug_hud:
@@ -671,12 +688,15 @@ clear_debug_hud:
     lda #$20
 clear_debug_hud_loop:
     sta DEBUG_HUD_LINE,x
+    sta URL_HUD_LINE,x
     dex
     bpl clear_debug_hud_loop
     rts
 
-bar_phase_step_lut:
-    .byte 1,1,2
+bar_phase_step_lo_lut:
+    .byte $80, $00, $00 ; r=0 ha 0.5 di incremento
+bar_phase_step_hi_lut:
+    .byte $00, $01, $02 ; r=1 ha 1.0, r=2 ha 2.0
 
 debug_mode:
     .byte 0
@@ -691,6 +711,11 @@ debug_hud_label:
     .byte $20
     .text "0"
     .byte 0
+    .enc "petscii"
+
+debug_url:
+    .enc "screen"
+    .text "https://github.com/quelo1972/c64-intro-1"
     .enc "petscii"
 
 scroll_table_ptr_lo:
@@ -720,21 +745,21 @@ scroll_speed_table_pulse_max:
     .byte 150,126,104,84,68,56,48,44,42,41,40,40,41,44,50,58
 
 bar_table_ptr_lo:
-    .byte <bar_phase_table_soft, <bar_phase_table_medium, <bar_phase_table_medium
+    .byte <bar_phase_table_medium, <bar_phase_table_medium, <bar_phase_table_medium
 bar_table_ptr_hi:
-    .byte >bar_phase_table_soft, >bar_phase_table_medium, >bar_phase_table_medium
+    .byte >bar_phase_table_medium, >bar_phase_table_medium, >bar_phase_table_medium
 
 bar_phase_table_soft:
-    .byte 20,22,23,25,26,28,29,30,31,32,33,34,35,35,36,36
-    .byte 36,36,36,35,35,34,33,32,31,30,29,28,26,25,23,22
-    .byte 20,18,17,15,14,12,11,10,9,8,7,6,5,5,4,4
-    .byte 4,4,4,5,5,6,7,8,9,10,11,12,14,15,17,18
+    .byte 16,17,17,18,19,20,21,21,22,23,23,24,24,25,25,25
+    .byte 25,25,25,24,24,23,23,22,21,21,20,19,18,17,17,16
+    .byte 16,15,15,14,13,12,11,11,10,09,09,08,08,07,07,07
+    .byte 07,07,07,08,08,09,09,10,11,11,12,13,14,15,15,16
 
 bar_phase_table_medium:
-    .byte 20,22,24,26,28,29,31,33,34,35,37,38,38,39,39,39
-    .byte 39,39,39,39,38,38,37,35,34,33,31,29,28,26,24,22
-    .byte 20,18,16,14,12,11,9,7,6,5,3,2,2,1,0,0
-    .byte 0,0,0,1,2,2,3,5,6,7,9,11,12,14,16,18
+    .byte 16,18,19,21,22,24,25,27,28,29,30,31,31,32,32,32
+    .byte 32,32,32,31,31,30,29,28,27,25,24,22,21,19,17,16
+    .byte 16,14,12,11,10,08,07,05,04,03,02,01,01,00,00,00
+    .byte 00,00,00,01,01,02,03,04,05,07,08,10,11,12,14,15
 
 ; ------------------------------------------------------------
 ; Sprites Logic
@@ -753,10 +778,10 @@ TRAIL_DELAY = 8       ; Delay in frames between trail segments. Aumentalo per pi
 TRAIL_BUFFER_SIZE = 64  ; Power of 2, deve essere >= 8 * TRAIL_DELAY
 TRAIL_BUFFER_MASK = TRAIL_BUFFER_SIZE - 1
 
-history_idx_zp = $fb  ; ZP temp variable for history index
-msb_collect_zp = $fd  ; ZP temp for collecting MSB bits
-prio_collect_zp = $fc ; ZP temp for collecting Priority bits
-temp_spr_idx = $fe    ; ZP temp per l'indice dello sprite
+history_idx_zp = $70  ; Spostato per evitare conflitti con SID ($fb-$fe)
+msb_collect_zp = $71
+prio_collect_zp = $72
+temp_spr_idx = $73
 
 init_sprites:
     ; Enable all 8 Sprites
