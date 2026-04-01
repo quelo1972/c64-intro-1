@@ -5,7 +5,7 @@
 - **Sprite Animati (3 Frame)**: Implementata animazione pulsante con tre stadi (Piccolo, Medio, Grande) e sequenza "ping-pong".
 - **Effetto Onda (Wave)**: Introdotto offset nell'animazione degli sprite della scia per un movimento coordinato ma sfalsato.
 - **Priorità Sprite (Z-Depth)**: Stabilizzata la logica di passaggio automatico davanti/dietro al logo e allo scroller durante i rimbalzi.
-- **Palette Rainbow Consolidata**: Fissata la palette a 8 colori saturi per la scia degli sprite, garantendo massima visibilità.
+- **Palette Sprite Ripristinata**: Tornati ai colori originali (sfumature di blu) dopo il test dell'animazione fluida.
 
 ## [v1.0.4] - 2026-03-22
 ### Migliorie

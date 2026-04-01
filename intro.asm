@@ -741,11 +741,13 @@ bar_phase_table_medium:
 ; ------------------------------------------------------------
 
 SPRITE_DATA = $3000 ; Frame 0 (Piccolo)
-SPRITE_DATA1 = $3040 ; Frame 1 (Medio)
-SPRITE_DATA2 = $3080 ; Frame 2 (Grande)
+SPRITE_DATA1 = $3040 ; Frame 1 (Intermedio S-M)
+SPRITE_DATA2 = $3080 ; Frame 2 (Medio)
+SPRITE_DATA3 = $30c0 ; Frame 3 (Intermedio M-L)
+SPRITE_DATA4 = $3100 ; Frame 4 (Grande)
 SPRITE_PTR  = $07f8  ; Screen $0400 + $3f8 offset for Sprite 0
 
-SPRITE_ANIM_SPEED = 4 ; Velocità della pulsazione (frame tra uno step e l'altro)
+SPRITE_ANIM_SPEED = 3 ; Leggermente più veloce per compensare i frame extra
 
 TRAIL_DELAY = 8       ; Delay in frames between trail segments. Aumentalo per più spazio.
 TRAIL_BUFFER_SIZE = 64  ; Power of 2, deve essere >= 8 * TRAIL_DELAY
@@ -813,7 +815,7 @@ update_sprites:
     sta spr_anim_timer
     inc spr_anim_idx
     lda spr_anim_idx
-    and #3            ; Ciclo di 4 step per la sequenza 0,1,2,1
+    and #7            ; Ciclo di 8 step per la sequenza 0-1-2-3-4-3-2-1
     sta spr_anim_idx
 skip_anim_update:
 
@@ -931,7 +933,7 @@ update_vic_loop:
     sta temp_spr_idx
     clc
     adc spr_anim_idx  ; Sfalsa l'animazione in base alla posizione nella scia
-    and #3            ; Resta nel range 0-3 della sequenza
+    and #7            ; Resta nel range 0-7 della sequenza
     tay
     lda spr_anim_seq,y ; Ottiene il frame effettivo (0, 1, 2, o 1)
     clc
@@ -990,7 +992,7 @@ spr_dy: .byte 1
 
 spr_anim_timer: .byte 0
 spr_anim_idx:   .byte 0
-spr_anim_seq:   .byte 0, 1, 2, 1  ; Sequenza: Piccolo -> Medio -> Grande -> Medio
+spr_anim_seq:   .byte 0, 1, 2, 3, 4, 3, 2, 1 ; Sequenza fluida a 8 step
 
 trail_history_ptr: .byte 0
 trail_history_x:   .fill TRAIL_BUFFER_SIZE
@@ -1025,18 +1027,33 @@ sid_data_end:
     .fill 64-63, 0
 
 * = SPRITE_DATA1
-    ; Frame 1: Medium Ball
+    ; Frame 1: Small-Medium transition
+    .byte 0,0,0, 0,24,0, 0,60,0, 0,126,0, 1,255,128, 1,255,128
+    .byte 3,255,192, 3,255,192, 3,255,192, 3,255,192, 3,255,192, 1,255,128
+    .byte 1,255,128, 0,126,0, 0,60,0, 0,24,0, 0,0,0, 0,0,0
+    .fill 64-63, 0
+
+* = SPRITE_DATA2
+    ; Frame 2: Medium Ball (ex Frame 1)
     .byte 0,0,0, 0,60,0, 0,126,0, 1,255,128, 3,255,192, 3,255,192
     .byte 7,255,224, 7,255,224, 7,255,224, 7,255,224, 7,255,224, 3,255,192
     .byte 3,255,192, 1,255,128, 0,126,0, 0,60,0, 0,0,0, 0,0,0
     .fill 64-63, 0
 
-* = SPRITE_DATA2
-    ; Frame 2: Large Ball (original)
+* = SPRITE_DATA3
+    ; Frame 3: Medium-Large transition
+    .byte 0,0,0, 0,60,0, 0,255,0, 1,255,128, 7,255,224, 7,255,224
+    .byte 15,255,240, 15,255,240, 31,255,248, 31,255,248, 31,255,248, 15,255,240
+    .byte 15,255,240, 7,255,224, 7,255,224, 1,255,128, 0,255,0, 0,60,0
+    .fill 64-63, 0
+
+* = SPRITE_DATA4
+    ; Frame 4: Large Ball (ex Frame 2)
     .byte 0,0,0, 0,60,0, 0,255,0, 1,255,128, 7,255,224, 15,255,240
     .byte 31,255,248, 31,255,248, 63,255,252, 63,255,252, 63,255,252, 31,255,248
     .byte 31,255,248, 15,255,240, 7,255,224, 1,255,128, 0,255,0, 0,60,0
     .fill 64-63, 0
+
 
 ; ------------------------------------------------------------
 ; Logo Data (Appended at the end to avoid memory conflict)
