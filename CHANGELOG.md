@@ -2,10 +2,11 @@
 
 ## [Unreleased]
 ### Funzionalità
-- **Sprite Animati (3 Frame)**: Implementata animazione pulsante con tre stadi (Piccolo, Medio, Grande) e sequenza "ping-pong".
+- **Sprite Animati (5 Frame)**: Implementata animazione pulsante con cinque stadi per una maggiore fluidità e sequenza "ping-pong".
 - **Effetto Onda (Wave)**: Introdotto offset nell'animazione degli sprite della scia per un movimento coordinato ma sfalsato.
 - **Priorità Sprite (Z-Depth)**: Stabilizzata la logica di passaggio automatico davanti/dietro al logo e allo scroller durante i rimbalzi.
-- **Palette Sprite Ripristinata**: Tornati ai colori originali (sfumature di blu) dopo il test dell'animazione fluida.
+- **Rilocazione Memoria**: Spostate le variabili degli sprite a `$3300` per evitare collisioni con la musica a `$1000`.
+- **Fix Palette**: Ripristinata la sequenza corretta (Bianco, V.Chiaro, Giallo, Rosa, Arancio, Rosso, Marrone, Nero).
 
 ## [v1.0.4] - 2026-03-22
 ### Migliorie

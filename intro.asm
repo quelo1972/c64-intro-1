@@ -983,30 +983,6 @@ no_prio:
     sta trail_history_ptr
     rts
 
-spr_x:  .byte 100
-spr_x_hi: .byte 0
-spr_z_depth: .byte 0
-spr_y:  .byte 100
-spr_dx: .byte 1
-spr_dy: .byte 1
-
-spr_anim_timer: .byte 0
-spr_anim_idx:   .byte 0
-spr_anim_seq:   .byte 0, 1, 2, 3, 4, 3, 2, 1 ; Sequenza fluida a 8 step
-
-trail_history_ptr: .byte 0
-trail_history_x:   .fill TRAIL_BUFFER_SIZE
-trail_history_x_msb: .fill TRAIL_BUFFER_SIZE
-trail_history_y:   .fill TRAIL_BUFFER_SIZE
-trail_history_prio: .fill TRAIL_BUFFER_SIZE
-
-msb_table:
-    .byte 1,0, 2,0, 4,0, 8,0, 16,0, 32,0, 64,0, 128,0
-
-spr_colors:
-    ; Palette Rainbow Classica: Molto satura e visibile
-    .byte 1, 7, 13, 3, 14, 10, 8, 2
-
 ; ------------------------------------------------------------
 ; SID data (loaded at $1000)
 ; ------------------------------------------------------------
@@ -1053,6 +1029,35 @@ sid_data_end:
     .byte 31,255,248, 31,255,248, 63,255,252, 63,255,252, 63,255,252, 31,255,248
     .byte 31,255,248, 15,255,240, 7,255,224, 1,255,128, 0,255,0, 0,60,0
     .fill 64-63, 0
+
+; ------------------------------------------------------------
+; Sprite Variables & Tables (Relocated to $3300 to avoid $1000 collision)
+; ------------------------------------------------------------
+* = $3300
+spr_x:        .byte 100
+spr_x_hi:     .byte 0
+spr_z_depth:  .byte 0
+spr_y:        .byte 100
+spr_dx:       .byte 1
+spr_dy:       .byte 1
+
+spr_anim_timer: .byte 0
+spr_anim_idx:   .byte 0
+spr_anim_seq:   .byte 0, 1, 2, 3, 4, 3, 2, 1 ; Sequenza fluida a 8 step
+
+trail_history_ptr:   .byte 0
+trail_history_x:     .fill TRAIL_BUFFER_SIZE
+trail_history_x_msb: .fill TRAIL_BUFFER_SIZE
+trail_history_y:     .fill TRAIL_BUFFER_SIZE
+trail_history_prio:  .fill TRAIL_BUFFER_SIZE
+
+msb_table:
+    .byte 1,0, 2,0, 4,0, 8,0, 16,0, 32,0, 64,0, 128,0
+
+spr_colors:
+    ; Palette originale ripristinata
+    .byte 1, 13, 7, 10, 8, 2, 9, 0
+
 
 
 ; ------------------------------------------------------------
