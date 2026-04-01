@@ -1,4 +1,4 @@
-; C64 Intro v1.1.0 (64tass)
+; C64 Intro v0.1 (64tass)
 ; Build: make
 ; Load/run: SYS 2064
 
