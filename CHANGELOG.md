@@ -1,23 +1,26 @@
 # Changelog
 
-## [Unreleased]
+## [v1.2.0] - 2026-04-01
 ### Funzionalità
 - **Sprite Animati (3 Frame)**: Implementata animazione pulsante con tre stadi (Piccolo, Medio, Grande) e sequenza "ping-pong".
 - **Effetto Onda (Wave)**: Introdotto offset nell'animazione degli sprite della scia per un movimento coordinato ma sfalsato.
 - **Priorità Sprite (Z-Depth)**: Stabilizzata la logica di passaggio automatico davanti/dietro al logo e allo scroller durante i rimbalzi.
+
+## [v1.1.0] - 2026-03-28
+### Funzionalità
 - **Rilocazione Memoria**: Spostate le variabili degli sprite a `$3300` per evitare collisioni con la musica a `$1000`.
 - **Fix Palette**: Ripristinata la sequenza corretta (Bianco, V.Chiaro, Giallo, Rosa, Arancio, Rosso, Marrone, Nero).
 
-### Migliorie
-- **HUD Debug Ristrutturato**: Riga di debug centrata (riga 23) e aggiunta l'URL del progetto GitHub sull'ultima riga dello schermo.
-- **Ampiezza Barre Raster Uniforme**: Tutte le modalità delle barre raster (soft, medium, wild) ora hanno la stessa ampiezza di oscillazione, differenziandosi solo per la velocità.
-- **Velocità Barre Raster Frazionaria**: Introdotta logica di passo frazionario per le barre: la modalità 'super-lenta' (r=0) avanza di 0.5 step/frame, 'lenta' (r=1) di 1.0 step/frame, e 'veloce' (r=2) di 2.0 step/frame.
-- **Scroller Centrato Verticalmente**: La posizione verticale dello scroller è stata regolata (riga 17) per essere perfettamente centrata rispetto all'oscillazione delle barre raster.
-- **Sincronizzazione Audio Migliorata**: Risolti problemi di desync audio riposizionando le variabili temporanee degli sprite e ottimizzando il timing degli IRQ.
-- **Simmetria Oscillazione Barre**: Ricalcolate le tabelle sinusoidali per garantire un'oscillazione perfettamente simmetrica e fluida.
+### Refactor & UX
+- **HUD Debug 2.0**: Ristrutturato il footer su due righe: riga 23 (parametri) e riga 24 (URL GitHub 40 char).
+- **Allineamento Scroller**: Spostato lo scroller alla riga 17 (`$06A8`) per il centraggio verticale.
+- **Uniformità Estetica**: Tutte le modalità di movimento (`r=0,1,2`) ora condividono la stessa tabella sinusoidale (`medium`) per un'ampiezza costante di 32 pixel.
+- **Motore Frazionario**: Implementato accumulatore a 16-bit per la fase delle barre. Questo permette alla modalità `r=0` di muoversi a 0.5 pixel/frame (1 step ogni 2 frame).
 
-### Correzioni
-- **Flickering HUD da Sprite**: Risolto il micro-disturbo sulla riga di debug causato dagli sprite anticipando lo split raster dell'HUD a riga 233.
+### Ottimizzazioni Tecniche
+- **Sincronizzazione Audio**: Spostate le variabili in Zero Page dall'area `$FB-$FE` all'area `$70-$73` (safe zone).
+- **Simmetria Oscillazione Barre**: Ricalcolate le tabelle sinusoidali per garantire un'oscillazione perfettamente simmetrica e fluida.
+- **Timing IRQ**: Anticipato lo split dell'HUD alla riga raster 233 per prevenire glitch grafici causati dal DMA degli sprite che "rubano" cicli alla CPU.
 - **Doppio Rimbalzo Barre Raster**: Eliminato l'effetto di "doppio rimbalzo" e asimmetria nell'oscillazione delle barre raster.
 
 ## [v1.0.4] - 2026-03-22

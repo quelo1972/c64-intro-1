@@ -27,7 +27,7 @@ Se carichi il PRG manualmente in VICE:
 - Il loader BASIC esegue `SYS 2064`.
 - **Effetti Visivi**:
   - **Raster Bars**: Gradiente a 11 colori gestito via IRQ (Line 150+).
-  - **Scroller**: Scorrimento fluido (hard+soft scroll) su riga 18 ($06D0).
+  - **Scroller**: Scorrimento fluido (hard+soft scroll) su riga 17 ($06A8).
   - **Logo**: Charset personalizzato ($2800) e mappa schermo ($3C00).
   - **Sprites**: 8 sprite con effetto scia (trail) che rimbalzano ($3000).
 - **Mappa Memoria**:
@@ -145,7 +145,7 @@ Come funziona:
 - Risultato: in modalità pulsanti il testo accelera e rallenta in modo morbido.
 
 ### Controlli Runtime Rapidi
-- `R`: cambia preset movimento raster bars (`soft -> medium -> wild`)
+- `R`: cambia velocità movimento raster bars (`super-lenta -> lenta -> veloce`)
 - `S`: cambia modalità velocità scroller (`fixed -> balanced -> extreme -> pulse_max`)
  - `D`: toggle Footer/Setup (`URL GitHub` <-> `Info Mode`)
 
