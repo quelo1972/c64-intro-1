@@ -8,6 +8,14 @@
 - **Rilocazione Memoria**: Spostate le variabili degli sprite a `$3300` per evitare collisioni con la musica a `$1000`.
 - **Fix Palette**: Ripristinata la sequenza corretta (Bianco, V.Chiaro, Giallo, Rosa, Arancio, Rosso, Marrone, Nero).
 
+## [v1.0.6] - 2026-03-25
+### Correzioni
+- Allineamento tag di versione per il repository remoto.
+
+## [v1.0.5] - 2026-03-23
+### Migliorie
+- Piccoli refactoring interni nella gestione dei buffer sprite.
+
 ## [v1.0.4] - 2026-03-22
 ### Migliorie
 - **Scroller `S` rifinito**: rimosso il profilo `subtle` perché troppo vicino a `fixed`; nuovo ciclo runtime `fixed -> balanced -> extreme -> pulse_max`.
