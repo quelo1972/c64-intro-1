@@ -23,6 +23,13 @@
 - **Timing IRQ**: Anticipato lo split dell'HUD alla riga raster 233 per prevenire glitch grafici causati dal DMA degli sprite che "rubano" cicli alla CPU.
 - **Doppio Rimbalzo Barre Raster**: Eliminato l'effetto di "doppio rimbalzo" e asimmetria nell'oscillazione delle barre raster.
 
+## [v1.0.6] - 2026-03-24
+### Funzionalità
+- **Footer Informativo Condiviso**: L'ultima riga dello schermo ora mostra il link completo al repository GitHub (Giallo) quando il menu info è disattivato.
+- **Modalità Setup**: Rinominata la vecchia "Debug Mode" in "Setup Mode" per riflettere le funzionalità interattive utente.
+- **Toggle 'D'**: Il tasto `D` ora agisce come switch tra il Footer GitHub e i valori di Setup ((r)mode, (s)mode).
+- **Layout**: Ottimizzata la centratura delle etichette e utilizzato l'intero width (40 colonne) per l'URL.
+
 ## [v1.0.4] - 2026-03-22
 ### Migliorie
 - **Scroller `S` rifinito**: rimosso il profilo `subtle` perché troppo vicino a `fixed`; nuovo ciclo runtime `fixed -> balanced -> extreme -> pulse_max`.
