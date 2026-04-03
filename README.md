@@ -57,8 +57,8 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
 - **Velocità Scroller**:
   - Modalità runtime: tasto `S` durante l'intro (ciclo `fixed -> balanced -> extreme -> pulse_max`).
   - Default all'avvio: `SCROLL_SPEED_MODE_DEFAULT` nella sezione scroller di `intro.asm`.
- - **Setup Runtime / Footer**:
-   - Tasto `D`: alterna la visualizzazione tra il link GitHub e i dati di setup (`setup (r)mode` e `(s)mode`).
+- **Setup Runtime / Footer**:
+  - Tasto `T`: alterna la visualizzazione tra il link GitHub e i dati di setup (`setup (r)mode` e `(s)mode`).
 
 ### Modificare le palette colori
 Per cambiare i colori in `intro.asm`, intervieni qui:
@@ -147,7 +147,7 @@ Come funziona:
 ### Controlli Runtime Rapidi
 - `R`: cambia velocità movimento raster bars (`super-lenta -> lenta -> veloce`)
 - `S`: cambia modalità velocità scroller (`fixed -> balanced -> extreme -> pulse_max`)
- - `D`: toggle Footer/Setup (`URL GitHub` <-> `Info Mode`)
+- `T`: toggle Footer/Setup (`URL GitHub` <-> `Setup Mode`)
 
 ## Storia del Progetto
 Il logo "SID" visualizzato in questa intro ha una storia speciale: è stato disegnato circa 40 anni fa dall'autore (SID) per il gruppo **ICS (Italian Cracking Service)**. Ritrovato recentemente all'interno della release "ICS Import" di *Ikari Warrior II* su CSDB, è stato estratto e utilizzato come cuore di questa intro per celebrare i vecchi tempi e la passione per il Commodore 64.
@@ -166,4 +166,4 @@ Il logo è stato recuperato dall'intro originale "ICS Import" (`ics-15.prg`) uti
 
 ## Dettagli Tecnici
 - **Sprite Trail**: L'effetto scia non calcola 8 posizioni diverse ogni frame. Utilizza un **buffer circolare** (`trail_history`) che registra la posizione dello sprite "testa". Gli altri 7 sprite leggono lo stesso storico ma con un indice ritardato nel tempo, creando un movimento fluido a "serpente".
-- **Raster Split**: L'interrupt divide lo schermo in quattro zone logiche (Top, Middle, Bars, HUD). La zona HUD usa uno split raster dedicato a fine frame per disattivare il fine-scroll orizzontale e mantenere la scritta debug stabile e leggibile.
+- **Raster Split**: L'interrupt divide lo schermo in quattro zone logiche (Top, Middle, Bars, HUD). La zona HUD usa uno split raster dedicato a fine frame per disattivare il fine-scroll orizzontale e mantenere il testo di setup stabile e leggibile.
