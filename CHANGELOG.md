@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.2.1] - 2026-04-03
+### Refactor & UX
+- **Setup Mode consolidato**: La vecchia terminologia "debug" e' stata rimossa dal codice e dall'HUD in favore di `Setup Mode`, piu' coerente con la funzione runtime reale.
+- **Toggle `T`**: Il pannello Setup ora si attiva con il tasto `T`/`t` al posto di `D`/`d`.
+- **Scroller e documentazione allineati**: aggiornati hint nel testo scorrevole, `README.md` e riferimenti operativi al nuovo naming.
+
 ## [v1.2.0] - 2026-04-01
 ### Funzionalità
 - **Sprite Animati (3 Frame)**: Implementata animazione pulsante con tre stadi (Piccolo, Medio, Grande) e sequenza "ping-pong".

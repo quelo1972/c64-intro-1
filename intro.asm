@@ -103,7 +103,7 @@ wait_line_exit:
     jsr handle_runtime_keys
     jsr update_sprites
     jsr update_bar_phase
-    jsr update_debug_hud
+    jsr update_setup_hud
     jmp main_loop
 
 ; ------------------------------------------------------------
@@ -372,8 +372,8 @@ fill_color:
     inx
     bne fill_color
     lda #0
-    sta debug_mode
-    jsr clear_debug_hud
+    sta setup_mode
+    jsr clear_setup_hud
     rts
 
 ; ------------------------------------------------------------
@@ -593,10 +593,10 @@ handle_runtime_keys:
     jsr $ff9f      ; KERNAL SCNKEY: scan keyboard matrix now
     jsr $ffe4      ; KERNAL GETIN (0 if no key)
     beq key_done
-    cmp #'D'
-    beq toggle_debug
-    cmp #'d'
-    beq toggle_debug
+    cmp #'T'
+    beq toggle_setup
+    cmp #'t'
+    beq toggle_setup
     cmp #'R'
     beq cycle_preset
     cmp #'r'
@@ -607,12 +607,12 @@ handle_runtime_keys:
     beq cycle_scroll_mode
     bne key_done
 
-toggle_debug:
-    lda debug_mode
+toggle_setup:
+    lda setup_mode
     eor #1
-    sta debug_mode
+    sta setup_mode
     bne key_done
-    jsr clear_debug_hud
+    jsr clear_setup_hud
     rts
 
 cycle_preset:
@@ -646,23 +646,23 @@ URL_HUD_LINE = $07c0
 URL_HUD_COLOR_LINE = $dbc0
 HUD_X_OFFSET = 6
 
-update_debug_hud:
-    lda debug_mode
-    bne write_debug_hud
+update_setup_hud:
+    lda setup_mode
+    bne write_setup_hud
     rts
 
-write_debug_hud:
+write_setup_hud:
     ldx #0
 copy_hud_label:
-    lda debug_hud_label,x
-    beq write_debug_values
+    lda setup_hud_label,x
+    beq write_setup_values
     sta DEBUG_HUD_LINE + HUD_X_OFFSET,x
     lda #1
     sta DEBUG_HUD_COLOR_LINE + HUD_X_OFFSET,x
     inx
     bne copy_hud_label
 
-write_debug_values:
+write_setup_values:
     lda bar_motion_preset
     clc
     adc #'0'
@@ -675,7 +675,7 @@ write_debug_values:
 
     ldx #39
 copy_url_loop:
-    lda debug_url,x
+    lda setup_url,x
     sta URL_HUD_LINE,x
     lda #1
     sta URL_HUD_COLOR_LINE,x
@@ -683,14 +683,14 @@ copy_url_loop:
     bpl copy_url_loop
     rts
 
-clear_debug_hud:
+clear_setup_hud:
     ldx #39
     lda #$20
-clear_debug_hud_loop:
+clear_setup_hud_loop:
     sta DEBUG_HUD_LINE,x
     sta URL_HUD_LINE,x
     dex
-    bpl clear_debug_hud_loop
+    bpl clear_setup_hud_loop
     rts
 
 bar_phase_step_lo_lut:
@@ -698,12 +698,12 @@ bar_phase_step_lo_lut:
 bar_phase_step_hi_lut:
     .byte $00, $01, $02 ; r=1 ha 1.0, r=2 ha 2.0
 
-debug_mode:
+setup_mode:
     .byte 0
 
-debug_hud_label:
+setup_hud_label:
     .enc "screen"
-    .text "debug (r)mode:"
+    .text "setup (r)mode:"
     .byte $20
     .text "0"
     .byte $20
@@ -713,7 +713,7 @@ debug_hud_label:
     .byte 0
     .enc "petscii"
 
-debug_url:
+setup_url:
     .enc "screen"
     .text "https://github.com/quelo1972/c64-intro-1"
     .enc "petscii"
@@ -1101,7 +1101,7 @@ logo_screen_data:
 * = $4000
 msg_scroll:
     .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
-    .text "premi (d) per attivare/disattivare il debug mode.   "
+    .text "premi (t) per attivare/disattivare il setup mode.   "
     .text "   *** hello c64 world! ***   intro realizzata a marzo 2026    "
     .text "sono sid e circa 40 anni fa feci questo logo per il gruppo ics "
     .text "(italian cracking service) non so se abbiano mai saputo chi l'avesse "
