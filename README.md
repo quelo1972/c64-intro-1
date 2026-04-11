@@ -58,7 +58,7 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
   - Modalità runtime: tasto `S` durante l'intro (ciclo `fixed -> balanced -> extreme -> pulse_max`).
   - Default all'avvio: `SCROLL_SPEED_MODE_DEFAULT` nella sezione scroller di `intro.asm`.
 - **Setup Runtime / Footer**:
-  - Tasto `T`: alterna la visualizzazione tra il link GitHub e i dati di setup (`setup (r)mode` e `(s)mode`).
+  - Tasto `T`: alterna la visualizzazione tra il link GitHub e i dati di setup (`(r)mode`, `(s)mode` e `l(e)vel`).
 
 ### Modificare le palette colori
 Per cambiare i colori in `intro.asm`, intervieni qui:
@@ -147,6 +147,7 @@ Come funziona:
 ### Controlli Runtime Rapidi
 - `R`: cambia velocità movimento raster bars (`super-lenta -> lenta -> veloce`)
 - `S`: cambia modalità velocità scroller (`fixed -> balanced -> extreme -> pulse_max`)
+- `E`: cambia velocità movimento sprite (`bassa -> media -> alta`)
 - `T`: toggle Footer/Setup (`URL GitHub` <-> `Setup Mode`)
 
 ## Storia del Progetto

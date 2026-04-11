@@ -1,4 +1,4 @@
-; C64 Intro v1.2.0 (64tass)
+; C64 Intro v1.2.2 (64tass)
 ; Build: make
 ; Load/run: SYS 2064
 
@@ -102,6 +102,7 @@ wait_line_exit:
     beq wait_line_exit
     jsr handle_runtime_keys
     jsr update_sprites
+    jsr maybe_extra_sprite_tick
     jsr update_bar_phase
     jsr update_setup_hud
     jmp main_loop
@@ -297,6 +298,12 @@ load_scroll_speed_mode:
     sta scroll_speed_cur
     lda #0
     sta scroll_accum
+    rts
+
+load_sprite_speed_mode:
+    ldx sprite_speed_mode
+    lda sprite_move_delay_lut,x
+    sta sprite_move_delay_cur
     rts
 
 do_hard_scroll:
@@ -528,6 +535,10 @@ scroll_speed_idx:
     .byte 0
 scroll_speed_mode:
     .byte 0
+sprite_move_delay_cur:
+    .byte 1
+sprite_speed_mode:
+    .byte 0
 
 bar_index:
     .byte 0
@@ -605,6 +616,10 @@ handle_runtime_keys:
     beq cycle_scroll_mode
     cmp #'s'
     beq cycle_scroll_mode
+    cmp #'E'
+    beq cycle_sprite_speed_mode
+    cmp #'e'
+    beq cycle_sprite_speed_mode
     bne key_done
 
 toggle_setup:
@@ -637,6 +652,21 @@ cycle_scroll_mode:
 
 apply_new_scroll_mode:
     jsr load_scroll_speed_mode
+    rts
+
+cycle_sprite_speed_mode:
+    lda setup_mode
+    beq key_done
+
+    inc sprite_speed_mode
+    lda sprite_speed_mode
+    cmp #SPRITE_SPEED_MODE_COUNT
+    bcc apply_new_sprite_speed_mode
+    lda #0
+    sta sprite_speed_mode
+
+apply_new_sprite_speed_mode:
+    jsr load_sprite_speed_mode
 key_done:
     rts
 
@@ -644,7 +674,7 @@ DEBUG_HUD_LINE = $0798
 DEBUG_HUD_COLOR_LINE = $db98
 URL_HUD_LINE = $07c0
 URL_HUD_COLOR_LINE = $dbc0
-HUD_X_OFFSET = 6
+HUD_X_OFFSET = 2
 
 update_setup_hud:
     lda setup_mode
@@ -666,12 +696,17 @@ write_setup_values:
     lda bar_motion_preset
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + HUD_X_OFFSET + 15
+    sta DEBUG_HUD_LINE + HUD_X_OFFSET + 14
 
     lda scroll_speed_mode
     clc
     adc #'0'
-    sta DEBUG_HUD_LINE + HUD_X_OFFSET + 26
+    sta DEBUG_HUD_LINE + HUD_X_OFFSET + 24
+
+    lda sprite_speed_mode
+    clc
+    adc #'1'
+    sta DEBUG_HUD_LINE + HUD_X_OFFSET + 34
 
     ldx #39
 copy_url_loop:
@@ -703,13 +738,7 @@ setup_mode:
 
 setup_hud_label:
     .enc "screen"
-    .text "setup (r)mode:"
-    .byte $20
-    .text "0"
-    .byte $20
-    .text "(s)mode:"
-    .byte $20
-    .text "0"
+    .text "setup (r)mode:0 (s)mode:0 l(e)vel:1"
     .byte 0
     .enc "petscii"
 
@@ -743,6 +772,12 @@ scroll_speed_table_pulse_max:
     .byte 212,196,180,164,148,132,116,100,84,72,60,52,46,42,40,40
     .byte 64,88,112,136,160,188,216,240,252,252,252,246,236,220,198,174
     .byte 150,126,104,84,68,56,48,44,42,41,40,40,41,44,50,58
+
+SPRITE_SPEED_MODE_DEFAULT = 1
+SPRITE_SPEED_MODE_COUNT = 3
+
+sprite_move_delay_lut:
+    .byte 2,1,0 ; 0=bassa, 1=media, 2=alta (distinte: ogni 3f, 2f, 1f)
 
 bar_table_ptr_lo:
     .byte <bar_phase_table_medium, <bar_phase_table_medium, <bar_phase_table_medium
@@ -808,6 +843,12 @@ init_spr_loop:
     sta spr_anim_timer
     sta spr_anim_idx
 
+    lda #SPRITE_SPEED_MODE_DEFAULT
+    sta sprite_speed_mode
+    jsr load_sprite_speed_mode
+    lda sprite_move_delay_cur
+    sta spr_move_timer
+
     ; Init positions
     lda #100
     sta spr_x
@@ -843,6 +884,10 @@ update_sprites:
     and #7            ; Ciclo di 8 step per la sequenza 0-1-2-3-4-3-2-1
     sta spr_anim_idx
 skip_anim_update:
+    dec spr_move_timer
+    bpl store_head_pos
+    lda sprite_move_delay_cur
+    sta spr_move_timer
 
     ; --- Part 1: Update head sprite position (bouncing logic) ---
     ; Update X
@@ -1008,6 +1053,18 @@ no_prio:
     sta trail_history_ptr
     rts
 
+maybe_extra_sprite_tick:
+    ; Global boost: +1 extra sprite update every 2 frames (~+50%)
+    inc sprite_extra_tick_div
+    lda sprite_extra_tick_div
+    cmp #2
+    bcc no_extra_sprite_tick
+    lda #0
+    sta sprite_extra_tick_div
+    jsr update_sprites
+no_extra_sprite_tick:
+    rts
+
 ; ------------------------------------------------------------
 ; SID data (loaded at $1000)
 ; ------------------------------------------------------------
@@ -1068,6 +1125,8 @@ spr_dy:       .byte 1
 
 spr_anim_timer: .byte 0
 spr_anim_idx:   .byte 0
+spr_move_timer: .byte 0
+sprite_extra_tick_div: .byte 0
 spr_anim_seq:   .byte 0, 1, 2, 3, 4, 3, 2, 1 ; Sequenza fluida a 8 step
 
 trail_history_ptr:   .byte 0
