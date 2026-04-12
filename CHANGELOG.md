@@ -1,7 +1,7 @@
 # Changelog
 
 ## [v1.2.2] - 2026-04-11
-### Funzionalità
+### Aggiunte
 - **Velocità Sprite Runtime**: Implementato il cambio di velocità per il movimento degli sprite tramite il tasto `E`. Supporta 3 livelli di reattività (Bassa, Media, Alta).
 - **Integrazione HUD**: Aggiunto l'indicatore `l(e)vel` nel pannello di Setup per monitorare e cambiare la velocità degli sprite in tempo reale.
 

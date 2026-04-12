@@ -119,6 +119,21 @@ Se vuoi una velocità personalizzata, modifica la LUT degli step (esempio: `.byt
 
 Nota: l'ampiezza dell'oscillazione dipende dalla `bar_phase_table`; la velocità dipende da `BAR_PHASE_STEP`.
 
+### Regolare la velocità degli Sprite (tasto E)
+Il movimento degli sprite è controllato da un sistema di delay e da un "extra tick" per garantire fluidità anche a velocità elevate.
+
+Parametri in `intro.asm`:
+- `SPRITE_SPEED_MODE_DEFAULT`: Imposta il livello iniziale (`0`=Bassa, `1`=Media, `2`=Alta).
+- `sprite_move_delay_lut`: Controlla quanti frame attendere prima di aggiornare la posizione:
+  - `.byte 2` (Livello 1): Movimento ogni 3 update.
+  - `.byte 1` (Livello 2): Movimento ogni 2 update.
+  - `.byte 0` (Livello 3): Movimento a ogni update (Massima reattività).
+
+Il tasto `E` cicla tra questi tre livelli. L'indicatore `l(e)vel` nell'HUD mostra il valore corrente (1-3).
+
+#### Ottimizzazione del movimento
+Per superare il limite di 1 pixel/frame senza scatti, la routine `maybe_extra_sprite_tick` esegue un aggiornamento supplementare della posizione ogni due frame, aumentando la velocità complessiva del 50% su tutti i livelli.
+
 ### Regolare la velocità dello Scroller (tasto S)
 Lo scroller supporta quattro modalità runtime, selezionabili con `S`:
 - `fixed`: velocità costante (comportamento classico)
