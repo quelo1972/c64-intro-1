@@ -1,12 +1,17 @@
 # Changelog
 
 ## [Unreleased]
+
+## [v1.3.2] - 2026-08-21
+### Correzioni
+- **Loop SID configurabile**: i player che concludono il brano in dissolvenza
+  vengono reinizializzati ogni 240 secondi, mantenendo la musica in esecuzione.
+
+## [v1.3.1] - 2026-08-21
 ### Correzioni
 - **Rilevamento SID extra inattivi**: il preparatore non abilita più in VICE
   chip dichiarati nell'header ma non referenziati dal payload; i brani mono
   vengono quindi riprodotti correttamente su entrambe le cuffie.
-- **Loop SID configurabile**: i player che concludono il brano in dissolvenza
-  vengono reinizializzati ogni 240 secondi, mantenendo la musica in esecuzione.
 
 ## [v1.3.0] - 2026-08-21
 ### Funzionalità
