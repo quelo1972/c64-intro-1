@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+### Correzioni
+- **Rilevamento SID extra inattivi**: il preparatore non abilita più in VICE
+  chip dichiarati nell'header ma non referenziati dal payload; i brani mono
+  vengono quindi riprodotti correttamente su entrambe le cuffie.
+
 ## [v1.3.0] - 2026-08-21
 ### Funzionalità
 - **SID selezionabile da Makefile**: la variabile `SID` identifica il file da
@@ -9,8 +15,8 @@
   estrae il payload e configura automaticamente indirizzi `load`, `init`,
   `play` e brano di default.
 - **Supporto StereoSID/3SID in VICE**: `make run` rileva gli SID aggiuntivi
-  dichiarati nel file e avvia VICE con i rispettivi indirizzi; l'uscita viene
-  miscelata in mono sui due canali audio.
+  dichiarati nel file e avvia VICE con i rispettivi indirizzi, preservando
+  l'uscita stereo.
 
 ### Correzioni
 - **Isolamento memoria SID/video**: logo, sprite, scroller e HUD sono stati

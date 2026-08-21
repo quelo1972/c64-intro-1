@@ -36,8 +36,11 @@ make run SID=Warriors.sid
 
 Durante la build il progetto legge l'header PSID, estrae automaticamente il
 payload e usa gli indirizzi `load`, `init`, `play` e la song di default del
-brano. `make run` configura anche gli eventuali SID aggiuntivi dichiarati dal
-file (StereoSID/3SID) in VICE e ne miscela l'audio su entrambi i canali.
+brano. `make run` controlla anche gli eventuali SID aggiuntivi dichiarati dal
+file: abilita in VICE solo quelli il cui indirizzo è effettivamente referenziato
+dal payload. Un file che dichiara SID extra ma usa solo `$D400` viene quindi
+avviato come mono e riprodotto su entrambe le cuffie; un vero StereoSID/3SID
+mantiene invece i canali sinistro e destro separati.
 
 Sono supportati file PSID/RSID con routine di play richiamabile a 50 Hz; i
 brani che richiedono un CIA timer vengono rifiutati con un messaggio chiaro. Su
