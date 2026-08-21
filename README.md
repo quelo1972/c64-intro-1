@@ -47,6 +47,10 @@ brani che richiedono un CIA timer vengono rifiutati con un messaggio chiaro. Su
 C64 reale, un brano multi-SID richiede naturalmente l'hardware SID aggiuntivo
 corrispondente.
 
+I brani che non implementano un loop interno vengono riavviati automaticamente
+dopo 240 secondi, prima della chiusura in dissolvenza. Per cambiare questa
+durata modifica `MUSIC_LOOP_SECONDS` in `intro.asm`.
+
 Se carichi il PRG manualmente in VICE:
 - `LOAD"INTRO.PRG",8,1`
 - `RUN`

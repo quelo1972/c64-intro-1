@@ -401,7 +401,14 @@ fill_color:
 
 .include "build/sid_config.asm"
 
+; Restart non-looping SID tunes before their closing fade. PAL IRQ is 50 Hz.
+MUSIC_LOOP_SECONDS = 240
+MUSIC_LOOP_FRAMES = MUSIC_LOOP_SECONDS * 50
+
 init_music:
+    lda #0
+    sta music_loop_frame_lo
+    sta music_loop_frame_hi
     jsr save_intro_zp
     lda #15
     sta $d418      ; volume max
@@ -414,6 +421,20 @@ init_music:
     rts
 
 music_tick:
+    inc music_loop_frame_lo
+    bne check_music_loop
+    inc music_loop_frame_hi
+check_music_loop:
+    lda music_loop_frame_lo
+    cmp #<MUSIC_LOOP_FRAMES
+    bne play_music
+    lda music_loop_frame_hi
+    cmp #>MUSIC_LOOP_FRAMES
+    bne play_music
+    jsr init_music
+    rts
+
+play_music:
     jsr save_intro_zp
     jsr restore_sid_zp
     jsr SID_PLAY
@@ -1168,6 +1189,11 @@ msb_table:
 spr_colors:
     ; Palette originale ripristinata
     .byte 1, 13, 7, 10, 8, 2, 9, 0
+
+music_loop_frame_lo:
+    .byte 0
+music_loop_frame_hi:
+    .byte 0
 
 ; Separate zero-page contexts for intro code and SID player (indices $70-$7D).
 intro_zp_state:
