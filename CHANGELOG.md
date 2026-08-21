@@ -1,7 +1,33 @@
 # Changelog
 
-## [v1.2.2] - 2026-04-11
+## [v1.3.0] - 2026-08-21
 ### Funzionalità
+- **SID selezionabile da Makefile**: la variabile `SID` identifica il file da
+  includere. È possibile usare anche `make run SID=percorso/brano.sid` senza
+  modificare i sorgenti.
+- **Preparazione PSID automatica**: `tools/prepare_sid.py` legge l'header,
+  estrae il payload e configura automaticamente indirizzi `load`, `init`,
+  `play` e brano di default.
+- **Supporto StereoSID/3SID in VICE**: `make run` rileva gli SID aggiuntivi
+  dichiarati nel file e avvia VICE con i rispettivi indirizzi; l'uscita viene
+  miscelata in mono sui due canali audio.
+
+### Correzioni
+- **Isolamento memoria SID/video**: logo, sprite, scroller e HUD sono stati
+  separati dalle aree usate dai player SID; lo stato zero-page condiviso viene
+  salvato e ripristinato attorno alle chiamate al player.
+- **Charset standard per testo e HUD**: rimosso il copia-in-RAM del charset
+  ROM (che differiva solo per un glifo). Scroller e menu ora usano direttamente
+  il charset ROM C64 nella banca VIC 2, evitando corruzioni causate dai player.
+- **Doppia banca sprite**: i dati sprite vengono duplicati nella banca del
+  testo per mantenerli corretti durante gli split raster tra logo e scroller.
+
+### Documentazione
+- **README aggiornato**: aggiunte istruzioni per la sostituzione della musica,
+  requisiti multi-SID e nuova mappa memoria.
+
+## [v1.2.2] - 2026-04-11
+### Aggiunte
 - **Velocità Sprite Runtime**: Implementato il cambio di velocità per il movimento degli sprite tramite il tasto `E`. Supporta 3 livelli di reattività (Bassa, Media, Alta).
 - **Integrazione HUD**: Aggiunto l'indicatore `l(e)vel` nel pannello di Setup per monitorare e cambiare la velocità degli sprite in tempo reale.
 

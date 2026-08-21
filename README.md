@@ -19,6 +19,31 @@ make
 make run
 ```
 
+## Sostituire la musica SID
+
+Nel `Makefile` modifica soltanto il valore di `SID` con il percorso del nuovo
+file `.sid`, quindi esegui `make run`:
+
+```make
+SID=Sometimes.sid
+```
+
+In alternativa puoi scegliere il file senza modificare il Makefile:
+
+```sh
+make run SID=Warriors.sid
+```
+
+Durante la build il progetto legge l'header PSID, estrae automaticamente il
+payload e usa gli indirizzi `load`, `init`, `play` e la song di default del
+brano. `make run` configura anche gli eventuali SID aggiuntivi dichiarati dal
+file (StereoSID/3SID) in VICE e ne miscela l'audio su entrambi i canali.
+
+Sono supportati file PSID/RSID con routine di play richiamabile a 50 Hz; i
+brani che richiedono un CIA timer vengono rifiutati con un messaggio chiaro. Su
+C64 reale, un brano multi-SID richiede naturalmente l'hardware SID aggiuntivo
+corrispondente.
+
 Se carichi il PRG manualmente in VICE:
 - `LOAD"INTRO.PRG",8,1`
 - `RUN`
@@ -28,23 +53,28 @@ Se carichi il PRG manualmente in VICE:
 - **Effetti Visivi**:
   - **Raster Bars**: Gradiente a 11 colori gestito via IRQ (Line 150+).
   - **Scroller**: Scorrimento fluido (hard+soft scroll) su riga 17 ($06A8).
-  - **Logo**: Charset personalizzato ($2800) e mappa schermo ($3C00).
-  - **Sprites**: 8 sprite con effetto scia (trail) che rimbalzano ($3000).
+  - **Logo**: Charset personalizzato ($5000) e mappa schermo ($7C00).
+  - **Sprites**: 8 sprite con effetto scia (trail) che rimbalzano ($7000).
 - **Mappa Memoria**:
   | Indirizzo | Descrizione | Note |
   |-----------|-------------|------|
   | `$0801`   | BASIC Header | `SYS 2064` |
   | `$0810`   | Main Code | Logica, IRQ |
-  | `$1000`   | SID Music | Player e Dati |
-  | `$2000`   | Main Charset | Modificato da ROM (Glyph 'A') |
-  | `$2800`   | Logo Charset | Grafica custom (Ripped) |
-  | `$3000`   | Sprites | Dati sprite hardware |
-  | `$3C00`   | Logo Map | Mappa schermo logo |
-  | `$4000`   | Scroller Text | Buffer testo |
+  | `$1000-$27FF` | SID Music | Payload SID selezionato |
+  | `$2800-$3FFF` | SID workspace | Area lasciata libera per i player SID |
+  | `$4400`   | Logo screen | Schermo del logo (banca VIC 1) |
+  | `$5000`   | Logo Charset | Grafica custom (Ripped) |
+  | `$7000`   | Sprites | Dati sprite hardware |
+  | `$7300`   | Sprite state | Variabili e storico della scia |
+  | `$7C00`   | Logo Map | Mappa schermo logo |
+  | `$8000`   | Scroller Text | Buffer testo |
+  | `$8800`   | Text screen | Scroller e HUD (banca VIC 2) |
+  | `$9000`   | Main Charset | Character ROM C64 standard |
 
 ## Struttura dei File
 - `intro.asm`: Il cuore del progetto (Sorgente Assembly).
-- `sid_data.bin`: Dati grezzi del modulo musicale (senza header PSID, caricati a `$1000`).
+- `tools/prepare_sid.py`: Estrae dati e indirizzi dal file SID scelto nel `Makefile`.
+- `build/sid_data.bin`: Payload musicale generato durante la build (senza header PSID).
 - `logo_charset.bin` / `logo_screen.bin`: Asset grafici estratti (rippati) dall'intro originale.
 - `Makefile`: Script per compilazione e avvio rapido.
 
@@ -118,6 +148,21 @@ bar_phase_step_lut:
 Se vuoi una velocità personalizzata, modifica la LUT degli step (esempio: `.byte 1,2,2` per avere `medium` e `wild` più veloci).
 
 Nota: l'ampiezza dell'oscillazione dipende dalla `bar_phase_table`; la velocità dipende da `BAR_PHASE_STEP`.
+
+### Regolare la velocità degli Sprite (tasto E)
+Il movimento degli sprite è controllato da un sistema di delay e da un "extra tick" per garantire fluidità anche a velocità elevate.
+
+Parametri in `intro.asm`:
+- `SPRITE_SPEED_MODE_DEFAULT`: Imposta il livello iniziale (`0`=Bassa, `1`=Media, `2`=Alta).
+- `sprite_move_delay_lut`: Controlla quanti frame attendere prima di aggiornare la posizione:
+  - `.byte 2` (Livello 1): Movimento ogni 3 update.
+  - `.byte 1` (Livello 2): Movimento ogni 2 update.
+  - `.byte 0` (Livello 3): Movimento a ogni update (Massima reattività).
+
+Il tasto `E` cicla tra questi tre livelli. L'indicatore `l(e)vel` nell'HUD mostra il valore corrente (1-3).
+
+#### Ottimizzazione del movimento
+Per superare il limite di 1 pixel/frame senza scatti, la routine `maybe_extra_sprite_tick` esegue un aggiornamento supplementare della posizione ogni due frame, aumentando la velocità complessiva del 50% su tutti i livelli.
 
 ### Regolare la velocità dello Scroller (tasto S)
 Lo scroller supporta quattro modalità runtime, selezionabili con `S`:
