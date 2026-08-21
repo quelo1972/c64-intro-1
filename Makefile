@@ -27,7 +27,8 @@ $(PRG): $(ASM) $(SID_CONFIG) $(SID_DATA)
 	64tass -a -B -o $(PRG) $(ASM)
 
 run: $(PRG)
-	x64 -soundoutput 1 $$(cat $(SID_VICE_ARGS)) $(PRG)
+	# Keep VICE's multi-SID channels in stereo; do not downmix them to mono.
+	x64 -soundoutput 2 $$(cat $(SID_VICE_ARGS)) $(PRG)
 
 build:
 	@mkdir -p build

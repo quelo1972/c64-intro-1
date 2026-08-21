@@ -21,6 +21,11 @@ def fail(message: str) -> None:
     raise SystemExit(f"prepare_sid.py: {message}")
 
 
+def references_address(payload: bytes, address: int) -> bool:
+    """Return whether the SID payload contains an absolute reference to address."""
+    return address.to_bytes(2, "little") in payload
+
+
 def main() -> None:
     if len(sys.argv) != 5:
         fail("usage: prepare_sid.py INPUT.sid OUTPUT.asm OUTPUT.bin OUTPUT-vice-args")
@@ -65,7 +70,23 @@ def main() -> None:
     sid3 = data[0x7B] if len(data) >= 0x7C else 0
     if sid3 and not sid2:
         fail(f"{source} declares a third SID without a second SID")
-    extra_addresses = [0xD000 + value * 0x10 for value in (sid2, sid3) if value]
+    declared_extra_addresses = [0xD000 + value * 0x10 for value in (sid2, sid3) if value]
+    # Some SID files retain multi-SID metadata although their player never
+    # addresses the extra chips. Do not make VICE expose silent stereo channels
+    # in that case: only enable chips referenced by the payload itself.
+    extra_addresses = [
+        address
+        for address in declared_extra_addresses
+        if references_address(payload, address)
+    ]
+    inactive_addresses = [
+        address
+        for address in declared_extra_addresses
+        if address not in extra_addresses
+    ]
+    if inactive_addresses:
+        ignored = ", ".join(f"${address:04x}" for address in inactive_addresses)
+        print(f"prepare_sid.py: ignoring declared but unused extra SID address(es): {ignored}")
     vice_args = []
     if extra_addresses:
         vice_args.extend(("-sidextra", str(len(extra_addresses))))
