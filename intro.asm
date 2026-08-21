@@ -19,9 +19,12 @@ CORRECT_LOGO_PRIORITY = 0 ; 1 = Corregge la priorità (logo monocolore), 0 = Loo
 
     jmp start
 
-USE_CHARSET = 1
-LOGO_CHARSET_ADDR = $2800
-LOGO_SCREEN_ADDR  = $0400
+VIC_LOGO_BANK     = %00000010  ; bank 1 ($4000-$7fff)
+VIC_TEXT_BANK     = %00000001  ; bank 2 ($8000-$bfff, ROM charset at $9000)
+SCREEN_ADDR       = $8800
+LOGO_SCREEN_ADDR  = $4400
+LOGO_CHARSET_ADDR = $5000
+LOGO_MAP_ADDR     = $7c00
 
 setup_logo:
     ; 1. Imposta i colori di sfondo (dallo screenshot)
@@ -75,16 +78,15 @@ start:
     jsr $e544      ; clear screen
     jsr init_colors
     jsr init_vic_bank
-    .if USE_CHARSET
-    jsr init_charset
-    .endif
+    ; SID init may initialize RAM/VIC state of its own. Run it before the
+    ; intro's graphics and IRQ setup so those routines establish our state.
+    jsr init_music
     ; Ordine importante:
     jsr init_screen
     jsr setup_logo     ; Disegna il logo SOPRA lo schermo pulito
     jsr init_scroller
     jsr init_irq
     jsr init_sprites
-    jsr init_music
 
 main_loop:
     ; Wait for V-blank (line 255) to avoid visual artifacts when moving screen memory
@@ -117,8 +119,12 @@ irq_top:
     sta $d019      ; ack raster IRQ
 
     ; --- ZONA LOGO (Top Screen) ---
-    ; Charset Logo ($2800 -> $1A) + Multicolor ($18)
-    lda #$1a
+    ; Logo: bank 1, screen $4400, charset $5000
+    lda $dd00
+    and #%11111100
+    ora #VIC_LOGO_BANK
+    sta $dd00
+    lda #$14
     sta $d018
 .if CORRECT_LOGO_PRIORITY
     lda #$08       ; Multicolor OFF (priorità corretta), 40 Cols
@@ -147,8 +153,12 @@ irq_split:
     sta $d019      ; ack raster IRQ
 
     ; --- ZONA SCROLLER/INTRO (Middle Screen) ---
-    ; Charset Testo ($2000 -> $14)
-    lda #$14
+    ; Text/HUD: bank 2, screen $8800, standard ROM charset at $9000
+    lda $dd00
+    and #%11111100
+    ora #VIC_TEXT_BANK
+    sta $dd00
+    lda #$24
     sta $d018
 
     ; Enable Scroll for the middle section
@@ -232,9 +242,10 @@ bar_colors:
 ; Scroller (line 24, 40 columns)
 ; ------------------------------------------------------------
 
-SCROLL_LINE = $06a8  ; $0400 + (17*40) -> Riga 17 (Centrata verticalmente nell'oscillazione)
-ZP_SCROLL = $60
-ZP_SCROLL_SPEED_TABLE = $68
+SCROLL_LINE = $8aa8  ; $8800 + (17*40) -> Riga 17
+; $60-$63 are used by Sometimes.sid's player.  Keep intro pointers above it.
+ZP_SCROLL = $74
+ZP_SCROLL_SPEED_TABLE = $76
 SCROLL_SPEED_TABLE_MASK = $3f
 SCROLL_SPEED_MODE_DEFAULT = 0
 SCROLL_SPEED_MODE_COUNT = 4
@@ -362,10 +373,10 @@ init_screen:
     ldx #0
     lda #$20
 fill_screen:
-    sta $0400,x
-    sta $0500,x
-    sta $0600,x
-    sta $06e8,x
+    sta SCREEN_ADDR,x
+    sta SCREEN_ADDR+$100,x
+    sta SCREEN_ADDR+$200,x
+    sta SCREEN_ADDR+$2e8,x
     inx
     bne fill_screen
 
@@ -384,91 +395,77 @@ fill_color:
     rts
 
 ; ------------------------------------------------------------
-; Charset: copy ROM to $2000 and tweak a glyph
+; ------------------------------------------------------------
+; SID music (prepared from the PSID file selected in the Makefile)
 ; ------------------------------------------------------------
 
-CHARSET_ADDR = $2000
-ZP_SRC = $62
-ZP_DST = $64
-
-init_charset:
-    sei
-    lda #<$d000
-    sta ZP_SRC
-    lda #>$d000
-    sta ZP_SRC+1
-    lda #<CHARSET_ADDR
-    sta ZP_DST
-    lda #>CHARSET_ADDR
-    sta ZP_DST+1
-
-    lda $01
-    sta old_mem
-    lda #$35
-    sta $01       ; map CHARGEN at $D000, I/O off
-
-    ldx #$08      ; 8 pages * 256 = 2048 bytes (STOP PRIMA DI $2800 per salvare il logo!)
-copy_page:
-    ldy #0
-copy_loop:
-    lda (ZP_SRC),y
-    sta (ZP_DST),y
-    iny
-    bne copy_loop
-    inc ZP_SRC+1
-    inc ZP_DST+1
-    dex
-    bne copy_page
-
-    lda old_mem
-    sta $01       ; restore memory config
-
-    ; tweak glyph for screen code 1 ('A')
-    ldy #7
-glyph_copy:
-    lda glyph_A,y
-    sta CHARSET_ADDR+8,y
-    dey
-    bpl glyph_copy
-
-    lda #$14
-    sta $d018     ; screen $0400, charset $2000
-    cli
-    rts
-
-glyph_A:
-    .byte %00011000
-    .byte %00100100
-    .byte %01000010
-    .byte %01111110
-    .byte %01000010
-    .byte %01000010
-    .byte %01000010
-    .byte %00000000
-
-old_mem:
-    .byte 0
-
-; ------------------------------------------------------------
-; SID music (PSID player)
-; ------------------------------------------------------------
-
-SID_LOAD = $1000
-SID_INIT = $1000
-SID_PLAY = $1003
-SID_SONG = 0
+.include "build/sid_config.asm"
 
 init_music:
+    jsr save_intro_zp
     lda #15
     sta $d418      ; volume max
     lda #SID_SONG
     ldx #0
     ldy #0
     jsr SID_INIT
+    jsr save_sid_zp
+    jsr restore_intro_zp
     rts
 
 music_tick:
+    jsr save_intro_zp
+    jsr restore_sid_zp
     jsr SID_PLAY
+    jsr save_sid_zp
+    jsr restore_intro_zp
+    rts
+
+; This SID player also uses the zero-page range $70-$7d as private state, while
+; the intro needs it for indirect pointers. Keep one context for those shared
+; bytes and swap it only around SID init/play calls. This deliberately avoids
+; copying all 256 zero-page bytes inside the raster IRQ.
+SID_SHARED_ZP_FIRST = $70
+SID_SHARED_ZP_END   = $7e
+
+save_intro_zp:
+    ldx #SID_SHARED_ZP_FIRST
+save_intro_zp_loop:
+    lda $0000,x
+    sta intro_zp_state,x
+    inx
+    cpx #SID_SHARED_ZP_END
+    bne save_intro_zp_loop
+    rts
+
+restore_intro_zp:
+    ldx #SID_SHARED_ZP_FIRST
+restore_intro_zp_loop:
+    lda intro_zp_state,x
+    sta $0000,x
+    inx
+    cpx #SID_SHARED_ZP_END
+    bne restore_intro_zp_loop
+    rts
+
+save_sid_zp:
+    ldx #SID_SHARED_ZP_FIRST
+save_sid_zp_loop:
+    lda $0000,x
+    sta sid_zp_state,x
+    inx
+    cpx #SID_SHARED_ZP_END
+    bne save_sid_zp_loop
+    rts
+
+restore_sid_zp:
+    ldx #SID_SHARED_ZP_FIRST
+restore_sid_zp_loop:
+    lda sid_zp_state,x
+    sta $0000,x
+    inx
+    cpx #SID_SHARED_ZP_END
+    bne restore_sid_zp_loop
     rts
 
 ; ------------------------------------------------------------
@@ -485,7 +482,7 @@ init_colors:
 init_vic_bank:
     lda $dd00
     and #%11111100
-    ora #%00000011  ; bank 0 ($0000-$3fff)
+    ora #VIC_LOGO_BANK
     sta $dd00
     rts
 
@@ -568,7 +565,7 @@ BAR_MOTION_PRESET_DEFAULT = 0
 BAR_PRESET_COUNT = 3
 BAR_PHASE_TABLE_MASK = $3f
 
-ZP_BAR_TABLE = $66
+ZP_BAR_TABLE = $7c
 
 update_bar_phase:
     lda bar_phase_frac
@@ -670,9 +667,9 @@ apply_new_sprite_speed_mode:
 key_done:
     rts
 
-DEBUG_HUD_LINE = $0798
+DEBUG_HUD_LINE = $8b98
 DEBUG_HUD_COLOR_LINE = $db98
-URL_HUD_LINE = $07c0
+URL_HUD_LINE = $8bc0
 URL_HUD_COLOR_LINE = $dbc0
 HUD_X_OFFSET = 2
 
@@ -800,12 +797,13 @@ bar_phase_table_medium:
 ; Sprites Logic
 ; ------------------------------------------------------------
 
-SPRITE_DATA = $3000 ; Frame 0 (Piccolo)
-SPRITE_DATA1 = $3040 ; Frame 1 (Intermedio S-M)
-SPRITE_DATA2 = $3080 ; Frame 2 (Medio)
-SPRITE_DATA3 = $30c0 ; Frame 3 (Intermedio M-L)
-SPRITE_DATA4 = $3100 ; Frame 4 (Grande)
-SPRITE_PTR  = $07f8  ; Screen $0400 + $3f8 offset for Sprite 0
+SPRITE_DATA = $7000 ; Frame 0 (Piccolo)
+SPRITE_DATA1 = $7040 ; Frame 1 (Intermedio S-M)
+SPRITE_DATA2 = $7080 ; Frame 2 (Medio)
+SPRITE_DATA3 = $70c0 ; Frame 3 (Intermedio M-L)
+SPRITE_DATA4 = $7100 ; Frame 4 (Grande)
+SPRITE_PTR  = $47f8  ; Logo screen $4400 + $3f8 offset
+SPRITE_PTR_TEXT = $8bf8 ; Text screen $8800 + $3f8 offset
 
 SPRITE_ANIM_SPEED = 3 ; Leggermente più veloce per compensare i frame extra
 
@@ -819,6 +817,7 @@ prio_collect_zp = $72
 temp_spr_idx = $73
 
 init_sprites:
+    jsr copy_sprites_to_text_bank
     ; Enable all 8 Sprites
     lda #$ff
     sta $d015
@@ -829,9 +828,10 @@ init_sprites:
 
     ldx #7
 init_spr_loop:
-    ; Set Pointer to data block ($3000 / 64 = $C0)
+    ; Set Pointer to data block ($7000 / 64 = $C0 in VIC bank 1)
     lda #$c0
     sta SPRITE_PTR,x
+    sta SPRITE_PTR_TEXT,x
     ; Set Colors
     lda spr_colors,x
     sta $d027,x
@@ -871,6 +871,32 @@ fill_hist_loop:
 
     ; Initial sprite update to place them correctly, avoiding artifacts
     jsr update_sprites
+    rts
+
+copy_sprites_to_text_bank:
+    ; Bank 2 needs its own sprite bytes ($b000) while the text screen is active.
+    ; Temporarily map out BASIC ROM so the RAM underneath $b000 is writable.
+    sei
+    lda $01
+    pha
+    lda #$35
+    sta $01
+    ldx #0
+copy_sprite_page:
+    lda SPRITE_DATA,x
+    sta $b000,x
+    inx
+    bne copy_sprite_page
+    ldx #0
+copy_sprite_tail:
+    lda SPRITE_DATA+$100,x
+    sta $b100,x
+    inx
+    cpx #64
+    bne copy_sprite_tail
+    pla
+    sta $01
+    cli
     rts
 
 update_sprites:
@@ -1007,9 +1033,10 @@ update_vic_loop:
     tay
     lda spr_anim_seq,y ; Ottiene il frame effettivo (0, 1, 2, o 1)
     clc
-    adc #$c0          ; Base pointer $3000 ($3000 / 64 = $C0)
+    adc #$c0          ; Base pointer $7000 ($7000 / 64 = $C0 in VIC bank 1)
     ldy temp_spr_idx
     sta SPRITE_PTR,y
+    sta SPRITE_PTR_TEXT,y
     ldy history_idx_zp ; Ripristina Y per i calcoli successivi sulla scia
 
     ; Collect MSB (9th bit) - Ripristina Y per leggere correttamente dalla storia
@@ -1066,16 +1093,16 @@ no_extra_sprite_tick:
     rts
 
 ; ------------------------------------------------------------
-; SID data (loaded at $1000)
+; SID payload (address and metadata are generated from the selected PSID file)
 ; ------------------------------------------------------------
 
 * = SID_LOAD
 sid_data:
-    .binary "sid_data.bin"
+    .binary "build/sid_data.bin"
 sid_data_end:
 
 ; ------------------------------------------------------------
-; Sprite Data (Located at $3000)
+; Sprite Data (Located at $7000)
 ; ------------------------------------------------------------
 * = SPRITE_DATA
     ; Frame 0: Small Ball
@@ -1113,9 +1140,9 @@ sid_data_end:
     .fill 64-63, 0
 
 ; ------------------------------------------------------------
-; Sprite Variables & Tables (Relocated to $3300 to avoid $1000 collision)
+; Sprite Variables & Tables (at $7300, after charset and sprite data)
 ; ------------------------------------------------------------
-* = $3300
+* = $7300
 spr_x:        .byte 100
 spr_x_hi:     .byte 0
 spr_z_depth:  .byte 0
@@ -1142,22 +1169,28 @@ spr_colors:
     ; Palette originale ripristinata
     .byte 1, 13, 7, 10, 8, 2, 9, 0
 
+; Separate zero-page contexts for intro code and SID player (indices $70-$7D).
+intro_zp_state:
+    .fill 256, 0
+sid_zp_state:
+    .fill 256, 0
+
 
 
 ; ------------------------------------------------------------
-; Logo Data (Appended at the end to avoid memory conflict)
+; Logo Data (in VIC bank 1, isolated from SID workspace)
 ; ------------------------------------------------------------
 * = LOGO_CHARSET_ADDR
     .binary "logo_charset.bin"
-* = $3c00
+* = LOGO_MAP_ADDR
 logo_screen_data:
     .binary "logo_screen.bin"
 
 ; ------------------------------------------------------------
 ; Scroll Text Data
-; Spostato a $4000 per evitare sovrapposizioni con il codice/SID a $1000
+; Outside VIC memory, away from the SID player workspace and graphics
 ; ------------------------------------------------------------
-* = $4000
+* = $8000
 msg_scroll:
     .enc "screen"      ; Mappa automaticamente ASCII -> Screen Codes
     .text "premi (t) per attivare/disattivare il setup mode.   "
