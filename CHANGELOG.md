@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v1.3.3] - 2026-08-24
 ### Funzionalità
 - **PRG nominato in base al SID**: `make SID=brano.sid` e
   `make run SID=brano.sid` generano ora `build/brano.prg`, consentendo di
