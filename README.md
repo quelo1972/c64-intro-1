@@ -14,6 +14,9 @@ Su Debian/Ubuntu di solito:
 make
 ```
 
+Il comando genera `build/Sometimes.prg`, cioè un PRG con il nome del SID
+selezionato.
+
 ## Run
 ```sh
 make run
@@ -28,11 +31,35 @@ file `.sid`, quindi esegui `make run`:
 SID=Sometimes.sid
 ```
 
-In alternativa puoi scegliere il file senza modificare il Makefile:
+In alternativa puoi scegliere il file senza modificare il Makefile. Il PRG
+generato usa automaticamente lo stesso nome del SID:
 
 ```sh
 make run SID=Warriors.sid
+# genera ed esegue build/Warriors.prg
 ```
+
+Per compilare senza avviare VICE:
+
+```sh
+make SID=Human_Race.sid
+# genera build/Human_Race.prg
+```
+
+### SID inclusi nel progetto
+
+| File SID | PRG generato | Durata / riavvio |
+|----------|--------------|------------------|
+| `Sometimes.sid` | `build/Sometimes.prg` | 3:55 / 4:00 |
+| `Warriors.sid` | `build/Warriors.prg` | 2:12.152 / 2:17.152 |
+| `Human_Race.sid` | `build/Human_Race.prg` | 2:44.554 / 2:49.554 |
+| `Human_Raced.sid` | `build/Human_Raced.prg` | 2:52.323 / 2:57.323 |
+| `Human_Race_Tango.sid` | `build/Human_Race_Tango.prg` | 2:26 / 2:31 |
+| `Human_Race_Is_Dying_Out.sid` | `build/Human_Race_Is_Dying_Out.prg` | 2:08.281 / 2:13.281 |
+| `Human_Race_Subtune_4_Cover.sid` | `build/Human_Race_Subtune_4_Cover.prg` | 2:34 / 2:39 |
+
+Puoi usare allo stesso modo qualunque altro file `.sid`, anche indicando un
+percorso esterno al repository: `make run SID=percorso/brano.sid`.
 
 Durante la build il progetto legge l'header PSID, estrae automaticamente il
 payload e usa gli indirizzi `load`, `init`, `play` e la song di default del
@@ -47,9 +74,22 @@ brani che richiedono un CIA timer vengono rifiutati con un messaggio chiaro. Su
 C64 reale, un brano multi-SID richiede naturalmente l'hardware SID aggiuntivo
 corrispondente.
 
-I brani che non implementano un loop interno vengono riavviati automaticamente
-dopo 240 secondi, prima della chiusura in dissolvenza. Per cambiare questa
-durata modifica `MUSIC_LOOP_SECONDS` in `intro.asm`.
+Sono supportati payload SID caricati nelle aree `$1000-$27FF` e
+`$A000-$B1FF`. Per i secondi il progetto mappa automaticamente la RAM sotto la
+BASIC ROM mentre il player è in esecuzione.
+
+I brani vengono reinizializzati cinque secondi dopo la loro durata misurata. Il
+formato SID non contiene questa informazione: le durate dei SID inclusi sono
+registrate in `tools/sid_lengths.json` (database HVSC, quando disponibile).
+Per `Sometimes.sid` è stata impostata la durata verificata di 3:55.
+Per un nuovo SID non presente nella tabella, specifica la durata in secondi:
+
+```sh
+make run SID=percorso/brano.sid SID_DURATION_SECONDS=172.3
+```
+
+Il valore viene convertito automaticamente in frame PAL e include i cinque
+secondi di attesa prima del riavvio.
 
 Se carichi il PRG manualmente in VICE:
 - `LOAD"INTRO.PRG",8,1`
@@ -77,11 +117,15 @@ Se carichi il PRG manualmente in VICE:
   | `$8000`   | Scroller Text | Buffer testo |
   | `$8800`   | Text screen | Scroller e HUD (banca VIC 2) |
   | `$9000`   | Main Charset | Character ROM C64 standard |
+  | `$A000-$B1FF` | SID Music | Area SID alternativa sotto BASIC ROM |
+  | `$B200`   | Text-bank sprites | Copia sprite per la banca VIC 2 |
 
 ## Struttura dei File
 - `intro.asm`: Il cuore del progetto (Sorgente Assembly).
 - `tools/prepare_sid.py`: Estrae dati e indirizzi dal file SID scelto nel `Makefile`.
+- `tools/sid_lengths.json`: Durate misurate dei SID inclusi, indicizzate per MD5.
 - `build/sid_data.bin`: Payload musicale generato durante la build (senza header PSID).
+- `build/<nome-sid>.prg`: PRG finale, nominato in base al SID selezionato.
 - `logo_charset.bin` / `logo_screen.bin`: Asset grafici estratti (rippati) dall'intro originale.
 - `Makefile`: Script per compilazione e avvio rapido.
 

@@ -401,9 +401,8 @@ fill_color:
 
 .include "build/sid_config.asm"
 
-; Restart non-looping SID tunes before their closing fade. PAL IRQ is 50 Hz.
-MUSIC_LOOP_SECONDS = 240
-MUSIC_LOOP_FRAMES = MUSIC_LOOP_SECONDS * 50
+; SID_RESTART_FRAMES is generated from the measured duration of the selected
+; subtune, plus a five-second gap. PAL IRQ is 50 Hz.
 
 init_music:
     lda #0
@@ -415,8 +414,14 @@ init_music:
     lda #SID_SONG
     ldx #0
     ldy #0
+.if SID_NEEDS_BASIC_RAM
+    jsr map_sid_memory
+.endif
     jsr SID_INIT
     jsr save_sid_zp
+.if SID_NEEDS_BASIC_RAM
+    jsr restore_intro_memory
+.endif
     jsr restore_intro_zp
     rts
 
@@ -426,10 +431,10 @@ music_tick:
     inc music_loop_frame_hi
 check_music_loop:
     lda music_loop_frame_lo
-    cmp #<MUSIC_LOOP_FRAMES
+    cmp #<SID_RESTART_FRAMES
     bne play_music
     lda music_loop_frame_hi
-    cmp #>MUSIC_LOOP_FRAMES
+    cmp #>SID_RESTART_FRAMES
     bne play_music
     jsr init_music
     rts
@@ -437,8 +442,14 @@ check_music_loop:
 play_music:
     jsr save_intro_zp
     jsr restore_sid_zp
+.if SID_NEEDS_BASIC_RAM
+    jsr map_sid_memory
+.endif
     jsr SID_PLAY
     jsr save_sid_zp
+.if SID_NEEDS_BASIC_RAM
+    jsr restore_intro_memory
+.endif
     jsr restore_intro_zp
     rts
 
@@ -825,6 +836,7 @@ SPRITE_DATA3 = $70c0 ; Frame 3 (Intermedio M-L)
 SPRITE_DATA4 = $7100 ; Frame 4 (Grande)
 SPRITE_PTR  = $47f8  ; Logo screen $4400 + $3f8 offset
 SPRITE_PTR_TEXT = $8bf8 ; Text screen $8800 + $3f8 offset
+SPRITE_PTR_TEXT_BASE = $c8 ; $b200 / 64 in VIC bank 2
 
 SPRITE_ANIM_SPEED = 3 ; Leggermente più veloce per compensare i frame extra
 
@@ -852,6 +864,7 @@ init_spr_loop:
     ; Set Pointer to data block ($7000 / 64 = $C0 in VIC bank 1)
     lda #$c0
     sta SPRITE_PTR,x
+    lda #SPRITE_PTR_TEXT_BASE
     sta SPRITE_PTR_TEXT,x
     ; Set Colors
     lda spr_colors,x
@@ -895,7 +908,7 @@ fill_hist_loop:
     rts
 
 copy_sprites_to_text_bank:
-    ; Bank 2 needs its own sprite bytes ($b000) while the text screen is active.
+    ; Bank 2 needs its own sprite bytes ($b200) while the text screen is active.
     ; Temporarily map out BASIC ROM so the RAM underneath $b000 is writable.
     sei
     lda $01
@@ -905,13 +918,13 @@ copy_sprites_to_text_bank:
     ldx #0
 copy_sprite_page:
     lda SPRITE_DATA,x
-    sta $b000,x
+    sta $b200,x
     inx
     bne copy_sprite_page
     ldx #0
 copy_sprite_tail:
     lda SPRITE_DATA+$100,x
-    sta $b100,x
+    sta $b300,x
     inx
     cpx #64
     bne copy_sprite_tail
@@ -1057,6 +1070,8 @@ update_vic_loop:
     adc #$c0          ; Base pointer $7000 ($7000 / 64 = $C0 in VIC bank 1)
     ldy temp_spr_idx
     sta SPRITE_PTR,y
+    clc
+    adc #(SPRITE_PTR_TEXT_BASE - $c0)
     sta SPRITE_PTR_TEXT,y
     ldy history_idx_zp ; Ripristina Y per i calcoli successivi sulla scia
 
@@ -1121,6 +1136,23 @@ no_extra_sprite_tick:
 sid_data:
     .binary "build/sid_data.bin"
 sid_data_end:
+
+.if SID_NEEDS_BASIC_RAM
+; Some PSID files are loaded under BASIC ROM ($a000-$bfff). Map that RAM only
+; while their player runs, then restore the intro's normal KERNAL/BASIC setup.
+* = $2400
+map_sid_memory:
+    lda $01
+    sta sid_memory_config
+    lda #$35
+    sta $01
+    rts
+
+restore_intro_memory:
+    lda sid_memory_config
+    sta $01
+    rts
+.endif
 
 ; ------------------------------------------------------------
 ; Sprite Data (Located at $7000)
@@ -1190,9 +1222,12 @@ spr_colors:
     ; Palette originale ripristinata
     .byte 1, 13, 7, 10, 8, 2, 9, 0
 
+; PAL frames elapsed since initialization of the selected SID subtune.
 music_loop_frame_lo:
     .byte 0
 music_loop_frame_hi:
+    .byte 0
+sid_memory_config:
     .byte 0
 
 ; Separate zero-page contexts for intro code and SID player (indices $70-$7D).

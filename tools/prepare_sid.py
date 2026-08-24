@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 
@@ -26,11 +29,43 @@ def references_address(payload: bytes, address: int) -> bool:
     return address.to_bytes(2, "little") in payload
 
 
-def main() -> None:
-    if len(sys.argv) != 5:
-        fail("usage: prepare_sid.py INPUT.sid OUTPUT.asm OUTPUT.bin OUTPUT-vice-args")
+PAL_FRAMES_PER_SECOND = Decimal("50")
+RESTART_DELAY_SECONDS = Decimal("5")
 
-    source, config_path, payload_path, vice_args_path = map(Path, sys.argv[1:])
+
+def load_duration_seconds(
+    source: Path, digest: str, song_index: int, override: str
+) -> Decimal:
+    """Return the measured duration for the selected subtune."""
+    if override:
+        try:
+            duration = Decimal(override)
+        except Exception as error:
+            fail(f"invalid SID_DURATION_SECONDS value {override!r}: {error}")
+        if duration <= 0:
+            fail("SID_DURATION_SECONDS must be greater than zero")
+        return duration
+
+    lengths_path = Path(__file__).with_name("sid_lengths.json")
+    lengths = json.loads(lengths_path.read_text())
+    durations = lengths.get(digest)
+    if not durations or song_index >= len(durations):
+        fail(
+            f"{source} has no measured duration in {lengths_path.name}; "
+            "rerun make with SID_DURATION_SECONDS=<seconds>"
+        )
+    return Decimal(str(durations[song_index]))
+
+
+def main() -> None:
+    if len(sys.argv) != 6:
+        fail(
+            "usage: prepare_sid.py INPUT.sid OUTPUT.asm OUTPUT.bin "
+            "OUTPUT-vice-args SID_DURATION_SECONDS"
+        )
+
+    source, config_path, payload_path, vice_args_path = map(Path, sys.argv[1:5])
+    duration_override = sys.argv[5]
     data = source.read_bytes()
     if len(data) < 0x76 or data[:4] not in (b"PSID", b"RSID"):
         fail(f"{source} is not a valid PSID/RSID file")
@@ -45,6 +80,15 @@ def main() -> None:
         fail(f"{source} has no C64 payload")
     if not 1 <= default_song <= songs:
         fail(f"{source} has an invalid default song number")
+    duration_seconds = load_duration_seconds(
+        source, hashlib.md5(data).hexdigest(), default_song - 1, duration_override
+    )
+    restart_frames = int(
+        ((duration_seconds + RESTART_DELAY_SECONDS) * PAL_FRAMES_PER_SECOND)
+        .to_integral_value(rounding=ROUND_HALF_UP)
+    )
+    if not 1 <= restart_frames <= 0xFFFF:
+        fail(f"{source} restart time does not fit the C64 frame counter")
 
     payload = data[data_offset:]
     if load == 0:
@@ -58,11 +102,15 @@ def main() -> None:
         fail(f"{source} needs CIA-timer playback, which this 50 Hz player does not support")
     if load + len(payload) > 0x10000:
         fail(f"{source} payload exceeds C64 memory")
-    if load < 0x1000 or load + len(payload) > 0x2800:
+    payload_end = load + len(payload)
+    fits_low_sid_area = 0x1000 <= load and payload_end <= 0x2800
+    fits_basic_ram_area = 0xA000 <= load and payload_end <= 0xB200
+    if not (fits_low_sid_area or fits_basic_ram_area):
         fail(
-            f"{source} payload (${load:04x}-${load + len(payload) - 1:04x}) "
-            "does not fit the project's free SID area ($1000-$27ff)"
+            f"{source} payload (${load:04x}-${payload_end - 1:04x}) does not fit "
+            "a supported SID area ($1000-$27ff or $a000-$b1ff)"
         )
+    sid_needs_basic_ram = int(load < 0xC000 and payload_end > 0xA000)
 
     # PSID v2NG stores extra SID addresses as $D000 + (header byte * $10).
     # A zero byte means that the corresponding chip is not used.
@@ -99,6 +147,8 @@ def main() -> None:
         f"SID_INIT = ${init:04x}\n"
         f"SID_PLAY = ${play:04x}\n"
         f"SID_SONG = {default_song - 1}\n"
+        f"SID_RESTART_FRAMES = {restart_frames}\n"
+        f"SID_NEEDS_BASIC_RAM = {sid_needs_basic_ram}\n"
     ).encode()
     write_if_changed(config_path, config)
     write_if_changed(payload_path, payload)

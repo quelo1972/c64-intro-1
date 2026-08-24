@@ -1,8 +1,13 @@
-PRG=build/intro.prg
 ASM=intro.asm
 # Cambia solo questo percorso per usare un'altra musica SID.
 SID=Sometimes.sid
+# Per SID non presenti in tools/sid_lengths.json, indica qui la durata in secondi.
+SID_DURATION_SECONDS=
+# Il PRG mantiene il nome del SID scelto, dentro la directory build/.
+SID_NAME=$(notdir $(basename $(SID)))
+PRG=build/$(SID_NAME).prg
 SID_PREPARE=tools/prepare_sid.py
+SID_LENGTHS=tools/sid_lengths.json
 SID_CONFIG=build/sid_config.asm
 SID_DATA=build/sid_data.bin
 SID_VICE_ARGS=build/sid_vice_args
@@ -16,8 +21,8 @@ FORCE:
 
 # FORCE also makes `make run SID=...` reliable when switching tunes without
 # cleaning first.  The helper preserves generated-file timestamps if unchanged.
-$(SID_STAMP): FORCE $(SID) $(SID_PREPARE) Makefile | build
-	python3 $(SID_PREPARE) "$(SID)" $(SID_CONFIG) $(SID_DATA) $(SID_VICE_ARGS)
+$(SID_STAMP): FORCE $(SID) $(SID_PREPARE) $(SID_LENGTHS) Makefile | build
+	python3 $(SID_PREPARE) "$(SID)" $(SID_CONFIG) $(SID_DATA) $(SID_VICE_ARGS) "$(SID_DURATION_SECONDS)"
 	@touch $(SID_STAMP)
 
 $(SID_CONFIG) $(SID_DATA) $(SID_VICE_ARGS): $(SID_STAMP)
@@ -34,4 +39,4 @@ build:
 	@mkdir -p build
 
 clean:
-	rm -f $(PRG) $(SID_CONFIG) $(SID_DATA) $(SID_VICE_ARGS) $(SID_STAMP)
+	rm -f build/*.prg $(SID_CONFIG) $(SID_DATA) $(SID_VICE_ARGS) $(SID_STAMP)

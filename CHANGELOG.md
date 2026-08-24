@@ -1,6 +1,29 @@
 # Changelog
 
 ## [Unreleased]
+### Funzionalità
+- **PRG nominato in base al SID**: `make SID=brano.sid` e
+  `make run SID=brano.sid` generano ora `build/brano.prg`, consentendo di
+  conservare build distinte per ciascuna chip tune.
+
+### Documentazione
+- **Catalogo SID disponibili**: il README elenca tutti i file `.sid` inclusi
+  nel progetto, il rispettivo nome del PRG e gli esempi di compilazione e avvio.
+
+### Correzioni
+- **Rilevamento SID extra inattivi**: il preparatore non abilita più in VICE
+  chip dichiarati nell'header ma non referenziati dal payload; i brani mono
+  vengono quindi riprodotti correttamente su entrambe le cuffie.
+<<<<<<< HEAD
+=======
+- **Loop SID con durata misurata**: eliminato il rilevamento del silenzio, che
+  poteva confondere pause musicali con la fine del brano. Il preparatore usa
+  ora una durata per SID/subtune e programma il riavvio cinque secondi dopo la
+  fine; per nuovi file è disponibile l'override `SID_DURATION_SECONDS`. Per
+  `Sometimes.sid` il ciclo è impostato a 4:00 (3:55 di musica + 5 secondi).
+- **Payload SID sotto BASIC ROM**: supportati i brani caricati a
+  `$A000-$B1FF`, con mapping temporaneo della RAM e sprite della banca testo
+  spostati a `$B200`.
 
 ## [v1.3.2] - 2026-08-21
 ### Correzioni
@@ -8,10 +31,6 @@
   vengono reinizializzati ogni 240 secondi, mantenendo la musica in esecuzione.
 
 ## [v1.3.1] - 2026-08-21
-### Correzioni
-- **Rilevamento SID extra inattivi**: il preparatore non abilita più in VICE
-  chip dichiarati nell'header ma non referenziati dal payload; i brani mono
-  vengono quindi riprodotti correttamente su entrambe le cuffie.
 
 ## [v1.3.0] - 2026-08-21
 ### Funzionalità
