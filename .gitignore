@@ -1,14 +1,9 @@
-# Build artifacts
-build/
-*.prg
+# Local diagnostic recording; do not add it to commits or pushes.
+/2026-08-28 09-16-41.mp4
+/2026-08-28 09-30-43.mp4
+/2026-08-28 09-41-34.mp4
+/2026-08-28 11-10-03.mp4
+/2026-08-28 11-37-01.mp4
 
-# Editor / OS
-.DS_Store
-*.swp
-*~
-# Windows alternate data stream metadata copied alongside downloaded files
-*:Zone.Identifier
-
-# Emulators
-*.vsf
-*.vsc
+# Generated build artifacts.
+/build/

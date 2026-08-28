@@ -5,6 +5,12 @@
 ; --- Impostazioni di compilazione ---
 CORRECT_LOGO_PRIORITY = 0 ; 1 = Corregge la priorità (logo monocolore), 0 = Look originale (priorità errata)
 
+; 0 = normale; 1 = sprite disabilitati; 2 = barre ferme; 3 = scroller fermo;
+; 4 = sprite confinati sopra la rasterbar; 5 = guardia DMA sprite per barra.
+.weak
+DIAGNOSTIC_MODE = 0
+.endweak
+
 * = $0801
 
 ; BASIC loader: 10 SYS 2064
@@ -19,11 +25,13 @@ CORRECT_LOGO_PRIORITY = 0 ; 1 = Corregge la priorità (logo monocolore), 0 = Loo
 
     jmp start
 
-VIC_LOGO_BANK     = %00000010  ; bank 1 ($4000-$7fff)
 VIC_TEXT_BANK     = %00000001  ; bank 2 ($8000-$bfff, ROM charset at $9000)
 SCREEN_ADDR       = $8800
-LOGO_SCREEN_ADDR  = $4400
-LOGO_CHARSET_ADDR = $5000
+; The display never changes VIC bank in a visible raster line: that is
+; unstable when a sprite DMA transfer overlaps the logo/scroller split.
+LOGO_SCREEN_ADDR  = $8c00
+LOGO_CHARSET_SOURCE_ADDR = $5000
+LOGO_CHARSET_ADDR = $b800
 LOGO_MAP_ADDR     = $7c00
 
 setup_logo:
@@ -36,7 +44,10 @@ setup_logo:
     lda #11
     sta $d023
 
-    ; 2. Copia la mappa dello schermo
+    ; 2. Copy the logo charset into the VIC-visible RAM below BASIC ROM.
+    jsr copy_logo_charset
+
+    ; 3. Copia la mappa dello schermo
     ldx #0
 copy_screen_loop:
     lda logo_screen_data,x
@@ -51,7 +62,7 @@ copy_screen_loop:
     cpx #250
     bne copy_screen_loop
 
-    ; 3. Pulizia parte bassa (HE GREET) con spazi
+    ; 4. Pulizia parte bassa (HE GREET) con spazi
     lda #$20
     ldx #0
 clean_lower_loop:
@@ -61,7 +72,7 @@ clean_lower_loop:
     cpx #250
     bne clean_lower_loop
 
-    ; 4. Riempi Color RAM (Marrone $09)
+    ; 5. Riempi Color RAM (Marrone $09)
     ldx #0
     lda #$09
 fill_color_loop:
@@ -119,12 +130,8 @@ irq_top:
     sta $d019      ; ack raster IRQ
 
     ; --- ZONA LOGO (Top Screen) ---
-    ; Logo: bank 1, screen $4400, charset $5000
-    lda $dd00
-    and #%11111100
-    ora #VIC_LOGO_BANK
-    sta $dd00
-    lda #$14
+    ; Logo: bank 2, screen $8c00, charset $b800
+    lda #$3e
     sta $d018
 .if CORRECT_LOGO_PRIORITY
     lda #$08       ; Multicolor OFF (priorità corretta), 40 Cols
@@ -140,7 +147,7 @@ irq_top:
     sta bar_index
 
     ; Setup next IRQ for Split (enable scrolling before text)
-    lda #140       ; Anticipato a 140 per dare margine alla prima barra
+    lda #140
     sta $d012
     lda #<irq_split
     sta $0314
@@ -154,10 +161,6 @@ irq_split:
 
     ; --- ZONA SCROLLER/INTRO (Middle Screen) ---
     ; Text/HUD: bank 2, screen $8800, standard ROM charset at $9000
-    lda $dd00
-    and #%11111100
-    ora #VIC_TEXT_BANK
-    sta $dd00
     lda #$24
     sta $d018
 
@@ -176,7 +179,11 @@ irq_bars:
 
     ldx bar_index
     lda bar_colors,x
+.if DIAGNOSTIC_MODE = 5
+    jsr irq_bar_colour_guarded
+.else
     sta $d021      ; background color
+.endif
 
     inx
     cpx #BAR_COUNT
@@ -216,19 +223,51 @@ irq_hud:
     jmp $ea81
 
 next_bar_irq:
+.if DIAGNOSTIC_MODE = 5
+    jmp next_bar_irq_guarded
+.else
     ldx bar_index
     lda bar_lines,x
     clc
     adc bar_phase
+
+    ; Avoid colour writes on badlines (vertical scroll value 3).
+    sta bar_target_line
+    and #7
+    cmp #3
+    bne bar_target_is_safe
+    inc bar_target_line
+bar_target_is_safe:
+    lda bar_target_line
+.if DIAGNOSTIC_MODE = 5
+    sec
+    sbc #2
+    sta $d012
+    lda #<irq_sprite_dma_guard
+    sta $0314
+    lda #>irq_sprite_dma_guard
+    sta $0315
+    jmp irq_done
+.else
     sta $d012
     
     lda #<irq_bars
     sta $0314
     lda #>irq_bars
     sta $0315
+    jmp irq_done
+.endif
 
 irq_done:
-    jmp $ea81      ; exit via KERNAL IRQ tail (restores regs, RTI)
+    jmp $ea81
+.endif
+
+.if DIAGNOSTIC_MODE = 5
+; Runs two scanlines before the transition. It only removes sprite DMA from
+; the target scanline; all sprite channels are restored by irq_bars.
+irq_sprite_dma_guard:
+    jmp irq_sprite_dma_guard_impl
+.endif
 
 BAR_COUNT = 11
 
@@ -267,6 +306,9 @@ init_scroller:
     rts
 
 tick_scroller:
+.if DIAGNOSTIC_MODE = 3
+    rts
+.endif
     jsr update_scroll_speed
 
     ; Fractional speed accumulator:
@@ -514,7 +556,7 @@ init_colors:
 init_vic_bank:
     lda $dd00
     and #%11111100
-    ora #VIC_LOGO_BANK
+    ora #VIC_TEXT_BANK
     sta $dd00
     rts
 
@@ -572,6 +614,12 @@ sprite_speed_mode:
 bar_index:
     .byte 0
 
+bar_target_line:
+    .byte 0
+
+sprite_dma_enable_saved:
+    .byte 0
+
 bar_phase:
     .byte 0
 bar_phase_idx:
@@ -600,6 +648,9 @@ BAR_PHASE_TABLE_MASK = $3f
 ZP_BAR_TABLE = $7c
 
 update_bar_phase:
+.if DIAGNOSTIC_MODE = 2
+    rts
+.endif
     lda bar_phase_frac
     clc
     adc bar_phase_step_lo_cur
@@ -834,11 +885,18 @@ SPRITE_DATA1 = $7040 ; Frame 1 (Intermedio S-M)
 SPRITE_DATA2 = $7080 ; Frame 2 (Medio)
 SPRITE_DATA3 = $70c0 ; Frame 3 (Intermedio M-L)
 SPRITE_DATA4 = $7100 ; Frame 4 (Grande)
-SPRITE_PTR  = $47f8  ; Logo screen $4400 + $3f8 offset
+SPRITE_PTR  = $8ff8  ; Logo screen $8c00 + $3f8 offset
 SPRITE_PTR_TEXT = $8bf8 ; Text screen $8800 + $3f8 offset
+SPRITE_PTR_LOGO_BASE = $c8 ; $b200 / 64 in VIC bank 2
 SPRITE_PTR_TEXT_BASE = $c8 ; $b200 / 64 in VIC bank 2
 
 SPRITE_ANIM_SPEED = 3 ; Leggermente più veloce per compensare i frame extra
+
+.if DIAGNOSTIC_MODE = 4
+SPRITE_BOTTOM_LIMIT = 124 ; sprite height is 21: last pixel stays above y=145
+.else
+SPRITE_BOTTOM_LIMIT = 229
+.endif
 
 TRAIL_DELAY = 8       ; Delay in frames between trail segments. Aumentalo per più spazio.
 TRAIL_BUFFER_SIZE = 64  ; Power of 2, deve essere >= 8 * TRAIL_DELAY
@@ -852,7 +910,11 @@ temp_spr_idx = $73
 init_sprites:
     jsr copy_sprites_to_text_bank
     ; Enable all 8 Sprites
+.if DIAGNOSTIC_MODE = 1
+    lda #0
+.else
     lda #$ff
+.endif
     sta $d015
     
     ; Set Sprite Priority to Front (0 = Sempre visibili sopra lo sfondo)
@@ -861,8 +923,8 @@ init_sprites:
 
     ldx #7
 init_spr_loop:
-    ; Set Pointer to data block ($7000 / 64 = $C0 in VIC bank 1)
-    lda #$c0
+    ; Both screens are in bank 2 and use the same sprite data at $b200.
+    lda #SPRITE_PTR_LOGO_BASE
     sta SPRITE_PTR,x
     lda #SPRITE_PTR_TEXT_BASE
     sta SPRITE_PTR_TEXT,x
@@ -1012,8 +1074,9 @@ update_y:
     adc spr_dy
     sta spr_y
 
-    ; Bounce Y (Limits 50-229). Sprite height 21px. Visible area 50-249. 249-21=228.
-    cmp #229
+    ; Bounce Y. Diagnostic mode 4 keeps the complete trail above the bar,
+    ; so sprite DMA cannot delay the bar colour IRQs.
+    cmp #SPRITE_BOTTOM_LIMIT
     bcs invert_y
     cmp #50
     bcc invert_y
@@ -1067,11 +1130,11 @@ update_vic_loop:
     tay
     lda spr_anim_seq,y ; Ottiene il frame effettivo (0, 1, 2, o 1)
     clc
-    adc #$c0          ; Base pointer $7000 ($7000 / 64 = $C0 in VIC bank 1)
+    adc #SPRITE_PTR_LOGO_BASE
     ldy temp_spr_idx
     sta SPRITE_PTR,y
     clc
-    adc #(SPRITE_PTR_TEXT_BASE - $c0)
+    adc #(SPRITE_PTR_TEXT_BASE - SPRITE_PTR_LOGO_BASE)
     sta SPRITE_PTR_TEXT,y
     ldy history_idx_zp ; Ripristina Y per i calcoli successivi sulla scia
 
@@ -1154,6 +1217,95 @@ restore_intro_memory:
     rts
 .endif
 
+; Keep this startup-only routine outside the $0810-$0fff code segment and
+; outside the SID workspace ($2800-$3fff).  The BASIC-ROM SID variant already
+; uses $2400 for its memory-mapping helpers, so reserve $2600 in that case.
+.if SID_NEEDS_BASIC_RAM
+* = $2600
+.else
+* = $2400
+.endif
+copy_logo_charset:
+    ; Map out BASIC ROM while writing the RAM underneath $b800-$bfff.
+    ; The KERNAL IRQ is still active at startup, so it must not fire while
+    ; its ROM is hidden by the temporary $01 configuration.
+    sei
+    lda $01
+    pha
+    lda #$35
+    sta $01
+    ldx #0
+copy_logo_charset_loop:
+    lda LOGO_CHARSET_SOURCE_ADDR,x
+    sta LOGO_CHARSET_ADDR,x
+    lda LOGO_CHARSET_SOURCE_ADDR+$100,x
+    sta LOGO_CHARSET_ADDR+$100,x
+    lda LOGO_CHARSET_SOURCE_ADDR+$200,x
+    sta LOGO_CHARSET_ADDR+$200,x
+    lda LOGO_CHARSET_SOURCE_ADDR+$300,x
+    sta LOGO_CHARSET_ADDR+$300,x
+    lda LOGO_CHARSET_SOURCE_ADDR+$400,x
+    sta LOGO_CHARSET_ADDR+$400,x
+    lda LOGO_CHARSET_SOURCE_ADDR+$500,x
+    sta LOGO_CHARSET_ADDR+$500,x
+    lda LOGO_CHARSET_SOURCE_ADDR+$600,x
+    sta LOGO_CHARSET_ADDR+$600,x
+    lda LOGO_CHARSET_SOURCE_ADDR+$700,x
+    sta LOGO_CHARSET_ADDR+$700,x
+    inx
+    bne copy_logo_charset_loop
+    pla
+    sta $01
+    cli
+    rts
+
+.if DIAGNOSTIC_MODE = 5
+; Keep the diagnostic guard out of $0810-$0fff, which ends immediately
+; before the SID player's $1000 load address.
+* = $2442
+next_bar_irq_guarded:
+    ldx bar_index
+    lda bar_lines,x
+    clc
+    adc bar_phase
+    sta bar_target_line
+    and #7
+    cmp #3
+    bne guarded_target_safe
+    inc bar_target_line
+guarded_target_safe:
+    lda bar_target_line
+    sec
+    sbc #2
+    sta $d012
+    lda #<irq_sprite_dma_guard
+    sta $0314
+    lda #>irq_sprite_dma_guard
+    sta $0315
+    jmp $ea81
+
+irq_bar_colour_guarded:
+    sta $d021
+    lda sprite_dma_enable_saved
+    sta $d015
+    rts
+
+irq_sprite_dma_guard_impl:
+    lda $d019
+    sta $d019
+    lda $d015
+    sta sprite_dma_enable_saved
+    lda #0
+    sta $d015
+    lda bar_target_line
+    sta $d012
+    lda #<irq_bars
+    sta $0314
+    lda #>irq_bars
+    sta $0315
+    jmp $ea81
+.endif
+
 ; ------------------------------------------------------------
 ; Sprite Data (Located at $7000)
 ; ------------------------------------------------------------
@@ -1162,35 +1314,37 @@ restore_intro_memory:
     .byte 0,0,0, 0,0,0, 0,24,0, 0,60,0, 0,126,0, 0,126,0
     .byte 0,255,0, 0,255,0, 0,255,0, 0,255,0, 0,255,0, 0,126,0
     .byte 0,126,0, 0,60,0, 0,24,0, 0,0,0, 0,0,0, 0,0,0
-    .fill 64-63, 0
+    ; A VIC sprite always fetches 64 bytes.  Pad the incomplete 21-line
+    ; drawing to a full block so the bottom rows cannot show stray RAM.
+    .fill 64 - (* - SPRITE_DATA), 0
 
 * = SPRITE_DATA1
     ; Frame 1: Small-Medium transition
     .byte 0,0,0, 0,24,0, 0,60,0, 0,126,0, 1,255,128, 1,255,128
     .byte 3,255,192, 3,255,192, 3,255,192, 3,255,192, 3,255,192, 1,255,128
     .byte 1,255,128, 0,126,0, 0,60,0, 0,24,0, 0,0,0, 0,0,0
-    .fill 64-63, 0
+    .fill 64 - (* - SPRITE_DATA1), 0
 
 * = SPRITE_DATA2
     ; Frame 2: Medium Ball (ex Frame 1)
     .byte 0,0,0, 0,60,0, 0,126,0, 1,255,128, 3,255,192, 3,255,192
     .byte 7,255,224, 7,255,224, 7,255,224, 7,255,224, 7,255,224, 3,255,192
     .byte 3,255,192, 1,255,128, 0,126,0, 0,60,0, 0,0,0, 0,0,0
-    .fill 64-63, 0
+    .fill 64 - (* - SPRITE_DATA2), 0
 
 * = SPRITE_DATA3
     ; Frame 3: Medium-Large transition
     .byte 0,0,0, 0,60,0, 0,255,0, 1,255,128, 7,255,224, 7,255,224
     .byte 15,255,240, 15,255,240, 31,255,248, 31,255,248, 31,255,248, 15,255,240
     .byte 15,255,240, 7,255,224, 7,255,224, 1,255,128, 0,255,0, 0,60,0
-    .fill 64-63, 0
+    .fill 64 - (* - SPRITE_DATA3), 0
 
 * = SPRITE_DATA4
     ; Frame 4: Large Ball (ex Frame 2)
     .byte 0,0,0, 0,60,0, 0,255,0, 1,255,128, 7,255,224, 15,255,240
     .byte 31,255,248, 31,255,248, 63,255,252, 63,255,252, 63,255,252, 31,255,248
     .byte 31,255,248, 15,255,240, 7,255,224, 1,255,128, 0,255,0, 0,60,0
-    .fill 64-63, 0
+    .fill 64 - (* - SPRITE_DATA4), 0
 
 ; ------------------------------------------------------------
 ; Sprite Variables & Tables (at $7300, after charset and sprite data)
@@ -1239,9 +1393,9 @@ sid_zp_state:
 
 
 ; ------------------------------------------------------------
-; Logo Data (in VIC bank 1, isolated from SID workspace)
+; Logo source data, isolated from the SID workspace
 ; ------------------------------------------------------------
-* = LOGO_CHARSET_ADDR
+* = LOGO_CHARSET_SOURCE_ADDR
     .binary "logo_charset.bin"
 * = LOGO_MAP_ADDR
 logo_screen_data:

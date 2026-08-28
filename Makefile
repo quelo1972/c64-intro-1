@@ -35,6 +35,22 @@ run: $(PRG)
 	# Keep VICE's multi-SID channels in stereo; do not downmix them to mono.
 	x64 -soundoutput 2 $$(cat $(SID_VICE_ARGS)) $(PRG)
 
+.PHONY: diagnose-sprites diagnose-bars diagnose-scroller diagnose-sprites-above-bars diagnose-sprite-dma-guard
+diagnose-sprites: $(SID_CONFIG) $(SID_DATA)
+	64tass -a -B -D DIAGNOSTIC_MODE=1 -o build/$(SID_NAME)-no-sprites.prg $(ASM)
+
+diagnose-bars: $(SID_CONFIG) $(SID_DATA)
+	64tass -a -B -D DIAGNOSTIC_MODE=2 -o build/$(SID_NAME)-static-bars.prg $(ASM)
+
+diagnose-scroller: $(SID_CONFIG) $(SID_DATA)
+	64tass -a -B -D DIAGNOSTIC_MODE=3 -o build/$(SID_NAME)-no-scroller.prg $(ASM)
+
+diagnose-sprites-above-bars: $(SID_CONFIG) $(SID_DATA)
+	64tass -a -B -D DIAGNOSTIC_MODE=4 -o build/$(SID_NAME)-sprites-above-bars.prg $(ASM)
+
+diagnose-sprite-dma-guard: $(SID_CONFIG) $(SID_DATA)
+	64tass -a -B -D DIAGNOSTIC_MODE=5 -o build/$(SID_NAME)-sprite-dma-guard.prg $(ASM)
+
 build:
 	@mkdir -p build
 
