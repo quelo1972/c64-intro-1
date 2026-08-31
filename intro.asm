@@ -275,7 +275,9 @@ bar_lines:
     .byte 146,151,156,161,166,171,176,181,186,191,196
 
 bar_colors:
-    .byte 0,2,8,10,7,1,7,10,8,2,0
+    ; Freddo e simmetrico: grigio scuro, blu, azzurro, ciano, bianco.
+    ; Il nero iniziale/finale mantiene pulito lo sfondo fuori dalla barra.
+    .byte 0,11,6,14,3,1,3,14,6,11,0
 
 ; ------------------------------------------------------------
 ; Scroller (line 24, 40 columns)
@@ -892,11 +894,9 @@ SPRITE_PTR_TEXT_BASE = $c8 ; $b200 / 64 in VIC bank 2
 
 SPRITE_ANIM_SPEED = 3 ; Leggermente più veloce per compensare i frame extra
 
-.if DIAGNOSTIC_MODE = 4
-SPRITE_BOTTOM_LIMIT = 124 ; sprite height is 21: last pixel stays above y=145
-.else
-SPRITE_BOTTOM_LIMIT = 229
-.endif
+; Release layout: the eight-sprite trail remains entirely within the logo.
+; A 21-pixel sprite with Y<=124 therefore never reaches the rasterbar.
+SPRITE_BOTTOM_LIMIT = 124
 
 TRAIL_DELAY = 8       ; Delay in frames between trail segments. Aumentalo per più spazio.
 TRAIL_BUFFER_SIZE = 64  ; Power of 2, deve essere >= 8 * TRAIL_DELAY

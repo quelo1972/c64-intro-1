@@ -2,6 +2,10 @@
 
 Intro per Commodore 64 con raster bars, scroller fluido, logo, sprite e musica SID.
 
+La release corrente mantiene la scia di otto sprite all'interno dell'area del
+logo, così non si sovrappone alla rasterbar. La barra usa un gradiente freddo
+simmetrico (grigio scuro, blu, azzurro, ciano, bianco e ritorno).
+
 ## Requisiti
 - `64tass` (cross-assembler)
 - `VICE` (`x64`) per eseguire il PRG
@@ -98,10 +102,10 @@ Se carichi il PRG manualmente in VICE:
 ## Note
 - Il loader BASIC esegue `SYS 2064`.
 - **Effetti Visivi**:
-  - **Raster Bars**: Gradiente a 11 colori gestito via IRQ (Line 150+).
+  - **Raster Bars**: Gradiente freddo a 11 cambi colore gestito via IRQ (linea 150+).
   - **Scroller**: Scorrimento fluido (hard+soft scroll) su riga 17 ($06A8).
   - **Logo**: Charset personalizzato ($5000) e mappa schermo ($7C00).
-  - **Sprites**: 8 sprite con effetto scia (trail) che rimbalzano ($7000).
+  - **Sprites**: 8 sprite con effetto scia (trail) che rimbalzano entro il logo ($7000).
 - **Mappa Memoria**:
   | Indirizzo | Descrizione | Note |
   |-----------|-------------|------|
