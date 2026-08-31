@@ -31,6 +31,11 @@ def references_address(payload: bytes, address: int) -> bool:
 
 PAL_FRAMES_PER_SECOND = Decimal("50")
 RESTART_DELAY_SECONDS = Decimal("5")
+# These tunes already restart their subtune internally. Reinitializing them
+# from the intro a few seconds later causes an audible double restart.
+SELF_LOOPING_SID_DIGESTS = {
+    "7a4b88dcfbbf2f8a8944d555a541a58e",  # Warriors.sid
+}
 
 
 def load_duration_seconds(
@@ -80,14 +85,20 @@ def main() -> None:
         fail(f"{source} has no C64 payload")
     if not 1 <= default_song <= songs:
         fail(f"{source} has an invalid default song number")
+    digest = hashlib.md5(data).hexdigest()
     duration_seconds = load_duration_seconds(
-        source, hashlib.md5(data).hexdigest(), default_song - 1, duration_override
+        source, digest, default_song - 1, duration_override
     )
-    restart_frames = int(
-        ((duration_seconds + RESTART_DELAY_SECONDS) * PAL_FRAMES_PER_SECOND)
-        .to_integral_value(rounding=ROUND_HALF_UP)
+    auto_restart = digest not in SELF_LOOPING_SID_DIGESTS
+    restart_frames = (
+        int(
+            ((duration_seconds + RESTART_DELAY_SECONDS) * PAL_FRAMES_PER_SECOND)
+            .to_integral_value(rounding=ROUND_HALF_UP)
+        )
+        if auto_restart
+        else 0
     )
-    if not 1 <= restart_frames <= 0xFFFF:
+    if not 0 <= restart_frames <= 0xFFFF:
         fail(f"{source} restart time does not fit the C64 frame counter")
 
     payload = data[data_offset:]
@@ -147,6 +158,7 @@ def main() -> None:
         f"SID_INIT = ${init:04x}\n"
         f"SID_PLAY = ${play:04x}\n"
         f"SID_SONG = {default_song - 1}\n"
+        f"SID_AUTO_RESTART = {int(auto_restart)}\n"
         f"SID_RESTART_FRAMES = {restart_frames}\n"
         f"SID_NEEDS_BASIC_RAM = {sid_needs_basic_ram}\n"
     ).encode()

@@ -55,7 +55,7 @@ make SID=Human_Race.sid
 | File SID | PRG generato | Durata / riavvio |
 |----------|--------------|------------------|
 | `Sometimes.sid` | `build/Sometimes.prg` | 3:55 / 4:00 |
-| `Warriors.sid` | `build/Warriors.prg` | 2:12.152 / 2:17.152 |
+| `Warriors.sid` | `build/Warriors.prg` | loop interno (nessun riavvio esterno) |
 | `Human_Race.sid` | `build/Human_Race.prg` | 2:44.554 / 2:49.554 |
 | `Human_Raced.sid` | `build/Human_Raced.prg` | 2:52.323 / 2:57.323 |
 | `Human_Race_Tango.sid` | `build/Human_Race_Tango.prg` | 2:26 / 2:31 |
@@ -100,7 +100,8 @@ Se carichi il PRG manualmente in VICE:
 - `RUN`
 
 ## Note
-- Il loader BASIC esegue `SYS 2064`.
+- Il loader BASIC esegue `SYS 9984`, un bootstrap che avvia in modo pulito il
+  codice principale a `$0810`.
 - **Effetti Visivi**:
   - **Raster Bars**: Gradiente freddo a 11 cambi colore gestito via IRQ (linea 150+).
   - **Scroller**: Scorrimento fluido (hard+soft scroll) su riga 17 ($06A8).
@@ -109,7 +110,8 @@ Se carichi il PRG manualmente in VICE:
 - **Mappa Memoria**:
   | Indirizzo | Descrizione | Note |
   |-----------|-------------|------|
-  | `$0801`   | BASIC Header | `SYS 2064` |
+  | `$0801`   | BASIC Header | `SYS 9984` (bootstrap) |
+  | `$2700`   | Bootstrap | Disattiva video, sprite e SID durante l'avvio |
   | `$0810`   | Main Code | Logica, IRQ |
   | `$1000-$27FF` | SID Music | Payload SID selezionato |
   | `$2800-$3FFF` | SID workspace | Area lasciata libera per i player SID |
@@ -143,7 +145,7 @@ Vuoi modificare l'intro? Ecco i punti chiave in `intro.asm`:
   - Modalità runtime: tasto `S` durante l'intro (ciclo `fixed -> balanced -> extreme -> pulse_max`).
   - Default all'avvio: `SCROLL_SPEED_MODE_DEFAULT` nella sezione scroller di `intro.asm`.
 - **Setup Runtime / Footer**:
-  - Tasto `T`: alterna la visualizzazione tra il link GitHub e i dati di setup (`(r)mode`, `(s)mode` e `l(e)vel`).
+  - Tasto `T`: alterna la visualizzazione tra il link GitHub e i dati di setup (`(r)mode`, `(s)mode` e `l(e)vel`). I tasti `R`, `S` ed `E` restano attivi in entrambe le visualizzazioni.
 
 ### Modificare le palette colori
 Per cambiare i colori in `intro.asm`, intervieni qui:
@@ -214,7 +216,7 @@ Parametri in `intro.asm`:
   - `.byte 1` (Livello 2): Movimento ogni 2 update.
   - `.byte 0` (Livello 3): Movimento a ogni update (Massima reattività).
 
-Il tasto `E` cicla tra questi tre livelli. L'indicatore `l(e)vel` nell'HUD mostra il valore corrente (1-3).
+Il tasto `E` cicla tra questi tre livelli, anche quando il Setup HUD è nascosto. L'indicatore `l(e)vel` mostra il valore corrente (1-3) quando il pannello è visibile.
 
 #### Ottimizzazione del movimento
 Per superare il limite di 1 pixel/frame senza scatti, la routine `maybe_extra_sprite_tick` esegue un aggiornamento supplementare della posizione ogni due frame, aumentando la velocità complessiva del 50% su tutti i livelli.
