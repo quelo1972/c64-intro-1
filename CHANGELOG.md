@@ -1,5 +1,19 @@
 # Changelog
 
+## [v1.3.4] - 2026-08-31
+### Correzioni
+- **Scia sprite confinata al logo**: gli otto sprite rimbalzano entro l'area
+  del logo e non attraversano più la rasterbar, preservando la stabilità
+  dell'intro completa (logo, scroller e musica).
+
+### Grafica
+- **Gradiente rasterbar freddo**: aggiornata la palette con una sequenza
+  simmetrica grigio scuro, blu, azzurro, ciano e bianco.
+
+### Manutenzione
+- **Progetto ripulito**: rimossi i laboratori e i PRG sperimentali; `make`
+  genera nuovamente soltanto la release principale `build/Sometimes.prg`.
+
 ## [v1.3.3] - 2026-08-24
 ### Funzionalità
 - **PRG nominato in base al SID**: `make SID=brano.sid` e
@@ -14,8 +28,6 @@
 - **Rilevamento SID extra inattivi**: il preparatore non abilita più in VICE
   chip dichiarati nell'header ma non referenziati dal payload; i brani mono
   vengono quindi riprodotti correttamente su entrambe le cuffie.
-<<<<<<< HEAD
-=======
 - **Loop SID con durata misurata**: eliminato il rilevamento del silenzio, che
   poteva confondere pause musicali con la fine del brano. Il preparatore usa
   ora una durata per SID/subtune e programma il riavvio cinque secondi dopo la
