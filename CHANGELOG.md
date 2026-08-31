@@ -5,6 +5,15 @@
 - **Scia sprite confinata al logo**: gli otto sprite rimbalzano entro l'area
   del logo e non attraversano più la rasterbar, preservando la stabilità
   dell'intro completa (logo, scroller e musica).
+- **Avvio pulito**: aggiunto un bootstrap separato che disattiva video,
+  sprite e audio prima dell'inizializzazione, evitando il lampo iniziale di
+  caratteri non inizializzati.
+- **Loop di Warriors.sid**: riconosciuto il loop interno del brano e rimosso
+  il riavvio esterno che ne causava una doppia ripartenza.
+
+### Controlli
+- **R, S ed E sempre attivi**: i controlli di rasterbar, scroller e velocità
+  sprite non dipendono più dalla visualizzazione del pannello Setup (`T`).
 
 ### Grafica
 - **Gradiente rasterbar freddo**: aggiornata la palette con una sequenza

@@ -1,6 +1,6 @@
 ; C64 Intro v1.2.2 (64tass)
 ; Build: make
-; Load/run: SYS 2064
+; Load/run: SYS 9984 (bootstrap) -> $0810
 
 ; --- Impostazioni di compilazione ---
 CORRECT_LOGO_PRIORITY = 0 ; 1 = Corregge la priorità (logo monocolore), 0 = Look originale (priorità errata)
@@ -13,11 +13,11 @@ DIAGNOSTIC_MODE = 0
 
 * = $0801
 
-; BASIC loader: 10 SYS 2064
+; BASIC loader: 10 SYS 9984 (safe bootstrap outside the SID payload)
 .word $080b       ; pointer to next BASIC line
 .word 10          ; line number
 .byte $9e         ; token for SYS
-.text "2064"      ; SYS 2064
+.text "9984"      ; SYS $2700
 .byte 0
 .word 0           ; end of BASIC program
 
@@ -87,11 +87,16 @@ fill_color_loop:
 
 start:
     jsr $e544      ; clear screen
-    jsr init_colors
+    lda #6
+    sta $d020      ; border color
+    lda #0
+    sta $d021      ; background color
     jsr init_vic_bank
     ; SID init may initialize RAM/VIC state of its own. Run it before the
     ; intro's graphics and IRQ setup so those routines establish our state.
     jsr init_music
+    lda #0
+    sta $d418      ; SID silenziato finché video e IRQ non sono pronti
     ; Ordine importante:
     jsr init_screen
     jsr setup_logo     ; Disegna il logo SOPRA lo schermo pulito
@@ -454,7 +459,7 @@ init_music:
     sta music_loop_frame_hi
     jsr save_intro_zp
     lda #15
-    sta $d418      ; volume max
+    sta boot_sid_volume
     lda #SID_SONG
     ldx #0
     ldy #0
@@ -470,6 +475,7 @@ init_music:
     rts
 
 music_tick:
+.if SID_AUTO_RESTART
     inc music_loop_frame_lo
     bne check_music_loop
     inc music_loop_frame_hi
@@ -481,7 +487,12 @@ check_music_loop:
     cmp #>SID_RESTART_FRAMES
     bne play_music
     jsr init_music
+    lda boot_sid_volume
+    sta $d418
     rts
+.else
+    jmp play_music
+.endif
 
 play_music:
     jsr save_intro_zp
@@ -548,20 +559,6 @@ restore_sid_zp_loop:
 ; Init helpers and data
 ; ------------------------------------------------------------
 
-init_colors:
-    lda #6
-    sta $d020      ; border color
-    lda #0
-    sta $d021      ; background color
-    rts
-
-init_vic_bank:
-    lda $dd00
-    and #%11111100
-    ora #VIC_TEXT_BANK
-    sta $dd00
-    rts
-
 init_irq:
     sei
     lda #$1b
@@ -595,6 +592,8 @@ init_irq:
     sta $d01a      ; enable raster IRQ
     lda #%00000001
     sta $d019      ; ack any pending
+    lda boot_sid_volume
+    sta $d418      ; volume SID attivo solo a intro inizializzata
     cli
     rts
 
@@ -737,9 +736,6 @@ apply_new_scroll_mode:
     rts
 
 cycle_sprite_speed_mode:
-    lda setup_mode
-    beq key_done
-
     inc sprite_speed_mode
     lda sprite_speed_mode
     cmp #SPRITE_SPEED_MODE_COUNT
@@ -1259,6 +1255,27 @@ copy_logo_charset_loop:
     cli
     rts
 
+; This tiny entry point runs before the main code at $0810.  It sits below the
+; SID workspace ($2800-$3fff), leaving the tight $0810-$0fff area untouched.
+* = $2700
+boot_start:
+    sei
+    lda #0
+    sta $d015      ; no sprite DMA during setup
+    sta $d418      ; no SID output during setup
+    lda $d011
+    and #%11101111
+    sta $d011      ; VIC display off until init_irq has completed
+    jmp start
+
+* = $2720
+init_vic_bank:
+    lda $dd00
+    and #%11111100
+    ora #VIC_TEXT_BANK
+    sta $dd00
+    rts
+
 .if DIAGNOSTIC_MODE = 5
 ; Keep the diagnostic guard out of $0810-$0fff, which ends immediately
 ; before the SID player's $1000 load address.
@@ -1376,11 +1393,6 @@ spr_colors:
     ; Palette originale ripristinata
     .byte 1, 13, 7, 10, 8, 2, 9, 0
 
-; PAL frames elapsed since initialization of the selected SID subtune.
-music_loop_frame_lo:
-    .byte 0
-music_loop_frame_hi:
-    .byte 0
 sid_memory_config:
     .byte 0
 
@@ -1389,6 +1401,17 @@ intro_zp_state:
     .fill 256, 0
 sid_zp_state:
     .fill 256, 0
+
+; Keep loop bookkeeping outside the sprite state and the SID's scratch RAM.
+; $7fe8-$7fef follows the 1,000-byte logo map ($7c00-$7fe7) and precedes
+; the unused end of that memory page.
+* = $7fe8
+music_loop_frame_lo:
+    .byte 0
+music_loop_frame_hi:
+    .byte 0
+boot_sid_volume:
+    .byte 0
 
 
 
