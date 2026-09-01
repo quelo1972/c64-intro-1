@@ -1,5 +1,18 @@
 # Changelog
 
+## [v1.3.5] - 2026-09-01
+### Correzioni
+- **Ciclo SID affidabile**: il contesto zero-page del player viene ripristinato
+  prima di ogni reinizializzazione, consentendo a `Human_Raced.sid` e
+  `Sometimes.sid` di ripartire correttamente con il ciclo gestito dall'intro.
+- **Loop interni rispettati**: `Warriors.sid`, `Human_Race.sid`,
+  `Human_Race_Tango.sid`, `Human_Race_Is_Dying_Out.sid` e
+  `Human_Race_Subtune_4_Cover.sid` non vengono più reinizializzati
+  artificialmente, perché dispongono già di un loop interno pulito.
+- **Compatibilità payload SID estesi**: spostata la routine di copia del logo
+  fuori dall'area `$1000-$27ff`, evitando sovrapposizioni con SID come
+  `Human_Race_Is_Dying_Out.sid`.
+
 ## [v1.3.4] - 2026-08-31
 ### Correzioni
 - **Scia sprite confinata al logo**: gli otto sprite rimbalzano entro l'area

@@ -34,7 +34,11 @@ RESTART_DELAY_SECONDS = Decimal("5")
 # These tunes already restart their subtune internally. Reinitializing them
 # from the intro a few seconds later causes an audible double restart.
 SELF_LOOPING_SID_DIGESTS = {
+    "2d2f51ee08f667d03cd50d389c12aae1",  # Human_Race.sid
+    "3106df22af88f1293e75af848bc48ae4",  # Human_Race_Is_Dying_Out.sid
     "7a4b88dcfbbf2f8a8944d555a541a58e",  # Warriors.sid
+    "4f0912e0b3131f6233283302b5a56416",  # Human_Race_Tango.sid
+    "f9310e3daa3fc20819e7c04e2fa48128",  # Human_Race_Subtune_4_Cover.sid
 }
 
 
