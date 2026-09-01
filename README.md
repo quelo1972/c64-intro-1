@@ -54,13 +54,13 @@ make SID=Human_Race.sid
 
 | File SID | PRG generato | Durata / riavvio |
 |----------|--------------|------------------|
-| `Sometimes.sid` | `build/Sometimes.prg` | 3:55 / 4:00 |
+| `Sometimes.sid` | `build/Sometimes.prg` | 3:55 / restart intro a 4:00 |
 | `Warriors.sid` | `build/Warriors.prg` | loop interno (nessun riavvio esterno) |
-| `Human_Race.sid` | `build/Human_Race.prg` | 2:44.554 / 2:49.554 |
-| `Human_Raced.sid` | `build/Human_Raced.prg` | 2:52.323 / 2:57.323 |
-| `Human_Race_Tango.sid` | `build/Human_Race_Tango.prg` | 2:26 / 2:31 |
-| `Human_Race_Is_Dying_Out.sid` | `build/Human_Race_Is_Dying_Out.prg` | 2:08.281 / 2:13.281 |
-| `Human_Race_Subtune_4_Cover.sid` | `build/Human_Race_Subtune_4_Cover.prg` | 2:34 / 2:39 |
+| `Human_Race.sid` | `build/Human_Race.prg` | loop interno (nessun riavvio esterno) |
+| `Human_Raced.sid` | `build/Human_Raced.prg` | 2:52.323 / restart intro a 2:57.323 |
+| `Human_Race_Tango.sid` | `build/Human_Race_Tango.prg` | loop interno (nessun riavvio esterno) |
+| `Human_Race_Is_Dying_Out.sid` | `build/Human_Race_Is_Dying_Out.prg` | loop interno (nessun riavvio esterno) |
+| `Human_Race_Subtune_4_Cover.sid` | `build/Human_Race_Subtune_4_Cover.prg` | loop interno (nessun riavvio esterno) |
 
 Puoi usare allo stesso modo qualunque altro file `.sid`, anche indicando un
 percorso esterno al repository: `make run SID=percorso/brano.sid`.
@@ -82,10 +82,12 @@ Sono supportati payload SID caricati nelle aree `$1000-$27FF` e
 `$A000-$B1FF`. Per i secondi il progetto mappa automaticamente la RAM sotto la
 BASIC ROM mentre il player è in esecuzione.
 
-I brani vengono reinizializzati cinque secondi dopo la loro durata misurata. Il
-formato SID non contiene questa informazione: le durate dei SID inclusi sono
-registrate in `tools/sid_lengths.json` (database HVSC, quando disponibile).
-Per `Sometimes.sid` è stata impostata la durata verificata di 3:55.
+I brani privi di loop interno vengono reinizializzati cinque secondi dopo la
+loro durata misurata. Il formato SID non contiene questa informazione: le
+durate dei SID inclusi sono registrate in `tools/sid_lengths.json` (database
+HVSC, quando disponibile). Per `Sometimes.sid` è stata impostata la durata
+verificata di 3:55; i SID con loop interno sono riconosciuti dal preparatore e
+non vengono reinizializzati.
 Per un nuovo SID non presente nella tabella, specifica la durata in secondi:
 
 ```sh
@@ -93,7 +95,7 @@ make run SID=percorso/brano.sid SID_DURATION_SECONDS=172.3
 ```
 
 Il valore viene convertito automaticamente in frame PAL e include i cinque
-secondi di attesa prima del riavvio.
+secondi di attesa prima del riavvio, quando il brano non ha un loop interno.
 
 Se carichi il PRG manualmente in VICE:
 - `LOAD"INTRO.PRG",8,1`

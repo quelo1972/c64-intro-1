@@ -458,6 +458,7 @@ init_music:
     sta music_loop_frame_lo
     sta music_loop_frame_hi
     jsr save_intro_zp
+    jsr restore_sid_zp
     lda #15
     sta boot_sid_volume
     lda #SID_SONG
@@ -1213,14 +1214,9 @@ restore_intro_memory:
     rts
 .endif
 
-; Keep this startup-only routine outside the $0810-$0fff code segment and
-; outside the SID workspace ($2800-$3fff).  The BASIC-ROM SID variant already
-; uses $2400 for its memory-mapping helpers, so reserve $2600 in that case.
-.if SID_NEEDS_BASIC_RAM
-* = $2600
-.else
-* = $2400
-.endif
+; Keep this startup-only routine outside both supported SID payload areas.
+; `$5800` is free RAM between the logo source data and the sprite frames.
+* = $5800
 copy_logo_charset:
     ; Map out BASIC ROM while writing the RAM underneath $b800-$bfff.
     ; The KERNAL IRQ is still active at startup, so it must not fire while
