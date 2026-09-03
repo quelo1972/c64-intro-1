@@ -1,5 +1,15 @@
 # Changelog
 
+## [v1.3.6] - 2026-09-03
+### Funzionalità
+- **Build batch dei SID inclusi**: aggiunto `make all`, che compila in un
+  colpo solo una versione della intro per ogni file `.sid` nella root del
+  progetto, generando i relativi `build/<nome-sid>.prg`.
+
+### Documentazione
+- **README aggiornato**: documentato il nuovo workflow per generare tutte le
+  varianti SID con un singolo comando.
+
 ## [v1.3.5] - 2026-09-01
 ### Correzioni
 - **Ciclo SID affidabile**: il contesto zero-page del player viene ripristinato

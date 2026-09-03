@@ -21,6 +21,16 @@ make
 Il comando genera `build/Sometimes.prg`, cioè un PRG con il nome del SID
 selezionato.
 
+Per compilare in un colpo solo una versione della intro per ogni `.sid`
+incluso nella root del progetto:
+
+```sh
+make all
+```
+
+Il comando genera i PRG corrispondenti in `build/`, ad esempio
+`build/Sometimes.prg`, `build/Warriors.prg` e così via.
+
 ## Run
 ```sh
 make run
