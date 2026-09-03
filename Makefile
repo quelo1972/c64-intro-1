@@ -1,6 +1,7 @@
 ASM=intro.asm
 # Cambia solo questo percorso per usare un'altra musica SID.
 SID=Sometimes.sid
+SID_FILES=$(sort $(wildcard *.sid))
 # Per SID non presenti in tools/sid_lengths.json, indica qui la durata in secondi.
 SID_DURATION_SECONDS=
 # Il PRG mantiene il nome del SID scelto, dentro la directory build/.
@@ -13,8 +14,16 @@ SID_DATA=build/sid_data.bin
 SID_VICE_ARGS=build/sid_vice_args
 SID_STAMP=build/.sid-prepared
 
-all: $(PRG)
+.DEFAULT_GOAL := default
 
+.PHONY: default all
+default: $(PRG)
+
+all: $(SID_FILES) $(SID_PREPARE) $(SID_LENGTHS) $(ASM) Makefile | build
+	@for sid in $(SID_FILES); do \
+		echo "==> Building $$sid"; \
+		$(MAKE) --no-print-directory SID="$$sid"; \
+	done
 
 .PHONY: FORCE
 FORCE:
